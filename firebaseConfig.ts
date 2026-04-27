@@ -3,14 +3,14 @@ import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
-// TODO: Replace with your project's Firebase configuration
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.firebasestorage.app",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyDIMUPpqFmB6axttb6Y9ewtHzEfFVcaxw8",
+  authDomain: "kamukoprusu.firebaseapp.com",
+  projectId: "kamukoprusu",
+  storageBucket: "kamukoprusu.firebasestorage.app",
+  messagingSenderId: "12130706958",
+  appId: "1:12130706958:web:1c993f59b2e40d61ffbe5f",
+  measurementId: "G-8NC0W8PCQ5"
 };
 
 // Initialize Firebase
