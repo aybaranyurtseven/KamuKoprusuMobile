@@ -1,98 +1,315 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
-
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { useRouter } from 'expo-router';
+import { useAuth } from '@/context/AuthContext';
+import { getUserComplaints } from '@/services/firestoreService';
+import { Complaint, LEVEL_THRESHOLDS } from '@/types/firestore';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import { GlassCard } from '@/components/ui/GlassCard';
+import { useAppDispatch, useAppSelector } from '@/store';
+import { setComplaints } from '@/store/slices/complaintsSlice';
+import StaffDashboard from '@/components/StaffDashboard';
 
+const STAFF_ROLES = ['InstitutionRep', 'Moderator', 'Admin', 'NGOCoordinator'];
+
+// Role göre doğru paneli gösterir: Vatandaş -> ana sayfa, personel -> yönetim paneli.
 export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+  const { userData } = useAuth();
+  if (userData?.role && STAFF_ROLES.includes(userData.role)) {
+    return <StaffDashboard />;
+  }
+  return <CitizenHome />;
+}
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+const LEVEL_COLORS: Record<string, string> = {
+  Bronze: '#CD7F32',
+  Silver: '#C0C0C0',
+  Gold: '#FFD700',
+  Platinum: '#E5E4E2',
+  Diamond: '#B9F2FF',
+};
+
+const LEVEL_EMOJIS: Record<string, string> = {
+  Bronze: '🥉',
+  Silver: '🥈',
+  Gold: '🥇',
+  Platinum: '💎',
+  Diamond: '👑',
+};
+
+const STATUS_MAP: Record<string, { label: string; color: string }> = {
+  PendingModeration: { label: 'Moderatör İncelemesinde', color: '#f39c12' },
+  Approved: { label: 'Onaylandı', color: '#2ecc71' },
+  Rejected: { label: 'Reddedildi', color: '#e74c3c' },
+  InProgress: { label: 'İşlemde', color: '#3498db' },
+  Resolved: { label: 'Çözüldü', color: '#27ae60' },
+  Closed: { label: 'Kapatıldı', color: '#95a5a6' },
+};
+
+const ACTIVE_STATUSES = ['PendingModeration', 'Approved', 'InProgress'];
+const DONE_STATUSES = ['Resolved', 'Closed'];
+
+function CitizenHome() {
+  const { user, userData } = useAuth();
+  const dispatch = useAppDispatch();
+  const { complaints } = useAppSelector((state) => state.complaints);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
+    const unsubscribe = getUserComplaints(
+      user.uid,
+      (data) => {
+        dispatch(setComplaints(data));
+        setLoading(false);
+      },
+      (error) => {
+        console.error(error);
+        setLoading(false); // Hata olsa da yükleme dursun (ör. eksik index)
+      }
+    );
+
+    return () => unsubscribe();
+  }, [user, dispatch]);
+
+  const formatDate = (timestamp: any) => {
+    if (!timestamp) return '';
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    return date.toLocaleDateString('tr-TR', { day: '2-digit', month: 'short', year: 'numeric' });
+  };
+
+  const total = complaints.length;
+  const activeCount = complaints.filter((c) => ACTIVE_STATUSES.includes(c.status)).length;
+  const doneCount = complaints.filter((c) => DONE_STATUSES.includes(c.status)).length;
+  const recent = complaints.slice(0, 3);
+
+  const firstName = (userData?.name || user?.email?.split('@')[0] || 'Kullanıcı').split(' ')[0];
+  const level = userData?.level || 'Bronze';
+  const xp = userData?.xp ?? 0;
+  const threshold = LEVEL_THRESHOLDS[level as keyof typeof LEVEL_THRESHOLDS];
+  const xpProgress =
+    threshold.max === Infinity ? 1 : (xp - threshold.min) / (threshold.max - threshold.min);
+
+  return (
+    <ThemedView style={styles.flex}>
+      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+        {/* Karşılama */}
+        <View style={styles.headerRow}>
+          <View style={{ flex: 1 }}>
+            <ThemedText style={styles.greeting}>Merhaba, {firstName} 👋</ThemedText>
+            <ThemedText style={styles.subGreeting}>Kamu Köprüsü&apos;ne hoş geldin</ThemedText>
+          </View>
+          <View style={[styles.levelChip, { borderColor: LEVEL_COLORS[level] }]}>
+            <Text style={styles.levelEmoji}>{LEVEL_EMOJIS[level]}</Text>
+            <Text style={[styles.levelText, { color: LEVEL_COLORS[level] }]}>{level}</Text>
+          </View>
+        </View>
+
+        {/* Seviye / XP özeti */}
+        <GlassCard intensity={70} style={styles.xpCard}>
+          <View style={styles.xpHeader}>
+            <ThemedText style={styles.xpTitle}>Deneyim Puanı</ThemedText>
+            <ThemedText style={styles.xpValue}>{xp} XP</ThemedText>
+          </View>
+          <View style={styles.progressBarBg}>
+            <View
+              style={[
+                styles.progressBarFill,
+                { width: `${Math.min(xpProgress * 100, 100)}%`, backgroundColor: LEVEL_COLORS[level] },
+              ]}
+            />
+          </View>
+          {threshold.max !== Infinity && (
+            <ThemedText style={styles.xpRange}>
+              Sonraki seviyeye {Math.max(threshold.max + 1 - xp, 0)} XP
+            </ThemedText>
+          )}
+        </GlassCard>
+
+        {/* İstatistikler */}
+        <View style={styles.statsRow}>
+          <View style={[styles.statCard, { backgroundColor: '#e8f4f8' }]}>
+            <Text style={[styles.statNumber, { color: '#0a7ea4' }]}>{total}</Text>
+            <Text style={styles.statLabel}>Toplam</Text>
+          </View>
+          <View style={[styles.statCard, { backgroundColor: '#fef5e7' }]}>
+            <Text style={[styles.statNumber, { color: '#f39c12' }]}>{activeCount}</Text>
+            <Text style={styles.statLabel}>Aktif</Text>
+          </View>
+          <View style={[styles.statCard, { backgroundColor: '#eafaf1' }]}>
+            <Text style={[styles.statNumber, { color: '#27ae60' }]}>{doneCount}</Text>
+            <Text style={styles.statLabel}>Çözülen</Text>
+          </View>
+        </View>
+
+        {/* Hızlı işlem */}
+        <TouchableOpacity
+          style={styles.primaryAction}
+          onPress={() => router.push('/create-complaint')}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.primaryActionIcon}>＋</Text>
+          <Text style={styles.primaryActionText}>Yeni Şikayet Oluştur</Text>
+        </TouchableOpacity>
+
+        {/* Son şikayetler */}
+        <View style={styles.sectionHeader}>
+          <ThemedText style={styles.sectionTitle}>Son Şikayetlerim</ThemedText>
+          {total > 0 && (
+            <TouchableOpacity onPress={() => router.push('/my-complaints')}>
+              <Text style={styles.seeAll}>Tümü →</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {loading ? (
+          <ActivityIndicator size="large" color="#0a7ea4" style={{ marginTop: 24 }} />
+        ) : recent.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyIcon}>📋</Text>
+            <ThemedText style={styles.emptyTitle}>Henüz şikayetin yok</ThemedText>
+            <ThemedText style={styles.emptySubtitle}>
+              İlk şikayetini oluşturmak için yukarıdaki butonu kullan.
+            </ThemedText>
+          </View>
+        ) : (
+          recent.map((item: Complaint) => {
+            const statusInfo = STATUS_MAP[item.status] || { label: item.status, color: '#999' };
+            return (
+              <TouchableOpacity
+                key={item.id}
+                onPress={() => router.push({ pathname: '/complaint-detail', params: { id: item.id } })}
+                style={{ marginBottom: 12 }}
+                activeOpacity={0.85}
+              >
+                <GlassCard intensity={70} style={styles.cardInner}>
+                  <View style={styles.cardHeader}>
+                    <Text style={styles.category}>{item.category}</Text>
+                    <View style={[styles.statusBadge, { backgroundColor: statusInfo.color }]}>
+                      <Text style={styles.statusText}>{statusInfo.label}</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
+                  <View style={styles.cardFooter}>
+                    <Text style={styles.institutionName} numberOfLines={1}>📍 {item.institutionName}</Text>
+                    <Text style={styles.date}>{formatDate(item.createdAt)}</Text>
+                  </View>
+                </GlassCard>
+              </TouchableOpacity>
+            );
+          })
+        )}
+      </ScrollView>
+    </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
+  flex: { flex: 1 },
+  container: { padding: 20, paddingTop: 28, paddingBottom: 40 },
+  headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: 20,
+  },
+  greeting: { fontSize: 24, fontWeight: 'bold' },
+  subGreeting: { fontSize: 14, opacity: 0.6, marginTop: 2 },
+  levelChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1.5,
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  levelEmoji: { fontSize: 16 },
+  levelText: { fontWeight: '700', fontSize: 13 },
+  xpCard: { marginBottom: 20 },
+  xpHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  xpTitle: { fontSize: 15, fontWeight: '600' },
+  xpValue: { fontSize: 15, fontWeight: '700', opacity: 0.8 },
+  progressBarBg: {
+    height: 10,
+    backgroundColor: '#e0e0e0',
+    borderRadius: 5,
+    overflow: 'hidden',
+  },
+  progressBarFill: { height: '100%', borderRadius: 5 },
+  xpRange: { fontSize: 12, opacity: 0.55, marginTop: 6, textAlign: 'right' },
+  statsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 20,
+  },
+  statCard: {
+    flex: 1,
+    borderRadius: 16,
+    paddingVertical: 18,
+    alignItems: 'center',
+  },
+  statNumber: { fontSize: 26, fontWeight: 'bold' },
+  statLabel: { fontSize: 13, color: '#555', marginTop: 4, fontWeight: '500' },
+  primaryAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     gap: 8,
+    backgroundColor: '#0a7ea4',
+    borderRadius: 16,
+    paddingVertical: 16,
+    marginBottom: 24,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  primaryActionIcon: { color: '#fff', fontSize: 22, fontWeight: 'bold', marginTop: -2 },
+  primaryActionText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 14,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  sectionTitle: { fontSize: 18, fontWeight: 'bold' },
+  seeAll: { color: '#0a7ea4', fontWeight: '600', fontSize: 14 },
+  cardInner: { padding: 16, borderRadius: 14 },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
   },
+  category: {
+    fontSize: 12,
+    color: '#0a7ea4',
+    fontWeight: '600',
+    backgroundColor: '#e8f4f8',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+  statusText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  cardTitle: { fontSize: 16, fontWeight: 'bold', color: '#333', marginBottom: 8 },
+  cardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  institutionName: { fontSize: 12, color: '#888', flex: 1, marginRight: 8 },
+  date: { fontSize: 12, color: '#aaa' },
+  emptyContainer: { alignItems: 'center', paddingTop: 30, paddingHorizontal: 20 },
+  emptyIcon: { fontSize: 56, marginBottom: 14 },
+  emptyTitle: { fontSize: 17, fontWeight: 'bold', marginBottom: 6 },
+  emptySubtitle: { fontSize: 14, textAlign: 'center', opacity: 0.6 },
 });

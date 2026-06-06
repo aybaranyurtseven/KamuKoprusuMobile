@@ -6,6 +6,8 @@ import { useEffect } from 'react';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
+import { Provider } from 'react-redux';
+import { store } from '@/store';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -26,7 +28,7 @@ const InitialLayout = () => {
     } else if (!user && !inAuthGroup) {
       router.replace('/(auth)/login');
     }
-  }, [user, loading, segments]);
+  }, [user, loading, segments, router]);
 
   return (
     <Stack>
@@ -43,9 +45,11 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AuthProvider>
-        <InitialLayout />
-      </AuthProvider>
+      <Provider store={store}>
+        <AuthProvider>
+          <InitialLayout />
+        </AuthProvider>
+      </Provider>
       <StatusBar style="auto" />
     </ThemeProvider>
   );

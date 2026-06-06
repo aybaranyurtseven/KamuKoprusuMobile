@@ -1,7 +1,10 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+// getReactNativePersistence, RN derlemesinde bulunur ancak ana TS tiplerinde dışa aktarılmaz.
+// @ts-ignore
+import { initializeAuth, getReactNativePersistence, getAuth, type Auth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const firebaseConfig = {
   apiKey: "AIzaSyDIMUPpqFmB6axttb6Y9ewtHzEfFVcaxw8",
@@ -17,7 +20,19 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 
 // Initialize Firebase Services
-export const auth = getAuth(app);
+// React Native'de oturumun cihazda kalıcı olması için AsyncStorage tabanlı
+// persistence ile başlatılır. Fast Refresh sırasında tekrar başlatma hatasını
+// (auth/already-initialized) önlemek için getAuth'a düşülür.
+let auth: Auth;
+try {
+  auth = initializeAuth(app, {
+    persistence: getReactNativePersistence(AsyncStorage),
+  });
+} catch {
+  auth = getAuth(app);
+}
+
+export { auth };
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 

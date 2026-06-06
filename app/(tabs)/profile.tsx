@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { useAuth } from '@/context/AuthContext';
 import { getUserData, getBadges } from '@/services/firestoreService';
 import { UserData, Badge, LEVEL_THRESHOLDS } from '@/types/firestore';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { AnimatedButton } from '@/components/ui/AnimatedButton';
 
 const LEVEL_COLORS: Record<string, string> = {
   Bronze: '#CD7F32',
@@ -150,9 +151,12 @@ export default function ProfileScreen() {
         </View>
 
         {/* Logout */}
-        <TouchableOpacity style={styles.logoutButton} onPress={logout}>
-          <Text style={styles.logoutText}>Çıkış Yap</Text>
-        </TouchableOpacity>
+        <AnimatedButton 
+          title="Çıkış Yap" 
+          variant="danger"
+          onPress={logout} 
+          style={styles.logoutButton}
+        />
       </ThemedView>
     </ScrollView>
   );
@@ -306,15 +310,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   logoutButton: {
-    backgroundColor: '#e74c3c',
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
     marginTop: 8,
-  },
-  logoutText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
   },
 });

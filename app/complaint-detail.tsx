@@ -1,11 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image, ActivityIndicator, TextInput, TouchableOpacity, Alert } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
-import { doc, getDoc, collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
+import { doc, collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '@/firebaseConfig';
 import { Complaint, ComplaintUpdate } from '@/types/firestore';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { useAuth } from '@/context/AuthContext';
+import { updateComplaintStatus } from '@/services/firestoreService';
+
+const MODERATOR_ROLES = ['Moderator', 'Admin', 'NGOCoordinator'];
 
 const STATUS_MAP: Record<string, { label: string; color: string; icon: string }> = {
   PendingModeration: { label: 'Moderatör İncelemesinde', color: '#f39c12', icon: '⏳' },
@@ -18,42 +22,76 @@ const STATUS_MAP: Record<string, { label: string; color: string; icon: string }>
 
 export default function ComplaintDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { user, userData } = useAuth();
   const [complaint, setComplaint] = useState<Complaint | null>(null);
   const [updates, setUpdates] = useState<ComplaintUpdate[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedStatus, setSelectedStatus] = useState<Complaint['status'] | null>(null);
+  const [note, setNote] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (!id) return;
 
-    const fetchComplaint = async () => {
-      try {
-        const docRef = doc(db, 'Complaints', id);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          setComplaint({ id: docSnap.id, ...docSnap.data() } as Complaint);
+    // Şikayeti canlı dinle (durum güncellenince banner anında yenilensin)
+    const complaintRef = doc(db, 'Complaints', id);
+    const unsubComplaint = onSnapshot(
+      complaintRef,
+      (snap) => {
+        if (snap.exists()) {
+          setComplaint({ id: snap.id, ...snap.data() } as Complaint);
         }
-      } catch (error) {
+        setLoading(false);
+      },
+      (error) => {
         console.error('Error fetching complaint:', error);
-      } finally {
         setLoading(false);
       }
-    };
+    );
 
-    fetchComplaint();
-
-    // Listen for updates
+    // Süreç geçmişini (ComplaintUpdates) dinle
     const q = query(
       collection(db, 'ComplaintUpdates'),
       where('complaintId', '==', id),
       orderBy('createdAt', 'desc')
     );
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const unsubUpdates = onSnapshot(q, (snapshot) => {
       const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as ComplaintUpdate));
       setUpdates(data);
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubComplaint();
+      unsubUpdates();
+    };
   }, [id]);
+
+  const isModerator = MODERATOR_ROLES.includes(userData?.role);
+  const isOwnerInstitution =
+    userData?.role === 'InstitutionRep' && userData?.institutionId === complaint?.institutionId;
+  const canManage = isModerator || isOwnerInstitution;
+
+  const handleUpdateStatus = async () => {
+    if (!complaint || !selectedStatus) {
+      Alert.alert('Durum seçin', 'Lütfen yeni bir durum seçin.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const statusLabel = STATUS_MAP[selectedStatus]?.label || selectedStatus;
+      const message = note.trim() || `Durum güncellendi: ${statusLabel}`;
+      const updatedBy = userData?.name || user?.email || 'Yetkili';
+      await updateComplaintStatus(complaint.id, selectedStatus, updatedBy, message);
+      setNote('');
+      setSelectedStatus(null);
+      Alert.alert('Başarılı', 'Şikayet durumu güncellendi.');
+    } catch (e) {
+      console.error(e);
+      Alert.alert('Hata', 'Durum güncellenemedi. Yetkiniz olmayabilir.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const formatDate = (timestamp: any) => {
     if (!timestamp) return '';
@@ -131,6 +169,60 @@ export default function ComplaintDetailScreen() {
                 ))}
               </View>
             </ScrollView>
+          </View>
+        )}
+
+        {/* Durum Güncelleme (sadece yetkili roller) */}
+        {canManage && (
+          <View style={styles.section}>
+            <ThemedText style={styles.sectionTitle}>Durumu Güncelle</ThemedText>
+            <View style={styles.statusOptions}>
+              {(Object.keys(STATUS_MAP) as Complaint['status'][]).map((s) => {
+                const info = STATUS_MAP[s];
+                const active = selectedStatus === s;
+                return (
+                  <TouchableOpacity
+                    key={s}
+                    onPress={() => setSelectedStatus(s)}
+                    style={[
+                      styles.statusOption,
+                      { borderColor: info.color },
+                      active && { backgroundColor: info.color },
+                    ]}
+                    activeOpacity={0.8}
+                  >
+                    <Text
+                      style={[
+                        styles.statusOptionText,
+                        active ? { color: '#fff' } : { color: info.color },
+                      ]}
+                    >
+                      {info.icon} {info.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            <TextInput
+              style={styles.noteInput}
+              placeholder="Vatandaşa not (opsiyonel)"
+              placeholderTextColor="#999"
+              value={note}
+              onChangeText={setNote}
+              multiline
+            />
+            <TouchableOpacity
+              style={[styles.updateButton, (!selectedStatus || submitting) && { opacity: 0.5 }]}
+              onPress={handleUpdateStatus}
+              disabled={!selectedStatus || submitting}
+              activeOpacity={0.85}
+            >
+              {submitting ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.updateButtonText}>Durumu Güncelle</Text>
+              )}
+            </TouchableOpacity>
           </View>
         )}
 
@@ -276,5 +368,44 @@ const styles = StyleSheet.create({
   timelineDate: {
     fontSize: 11,
     color: '#aaa',
+  },
+  statusOptions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 14,
+  },
+  statusOption: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1.5,
+  },
+  statusOptionText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  noteInput: {
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 12,
+    padding: 12,
+    minHeight: 70,
+    textAlignVertical: 'top',
+    fontSize: 14,
+    color: '#333',
+    backgroundColor: '#fafafa',
+    marginBottom: 14,
+  },
+  updateButton: {
+    backgroundColor: '#0a7ea4',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  updateButtonText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 15,
   },
 });

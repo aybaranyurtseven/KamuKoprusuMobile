@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "KamuKoprusuMobile",
-    "slug": "KamuKoprusuMobile",
+    "slug": "kamukoprusu",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -43,6 +43,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "659ee26d-aea0-48f5-b8ac-efa9a108b959"
+      }
+    },
+    "owner": "aybaranyurtsevens-organization"
   }
 }

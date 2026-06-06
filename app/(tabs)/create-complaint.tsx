@@ -1,17 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  ActivityIndicator, Alert, ScrollView, Image, Switch
+  Alert, ScrollView, Image, Switch
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { auth, db, storage } from '@/firebaseConfig';
+import { db, storage } from '@/firebaseConfig';
 import { createComplaint } from '@/services/firestoreService';
-import { getInstitutions } from '@/services/firestoreService';
 import { Institution } from '@/types/firestore';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { AnimatedButton } from '@/components/ui/AnimatedButton';
 import { useAuth } from '@/context/AuthContext';
+import { useAppDispatch, useAppSelector } from '@/store';
+import { fetchInstitutionsThunk } from '@/store/slices/institutionsSlice';
 
 const CATEGORIES = [
   { label: 'Ulaşım', value: 'Ulaşım' },
@@ -29,23 +31,18 @@ export default function CreateComplaintScreen() {
   const [description, setDescription] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedInstitution, setSelectedInstitution] = useState<Institution | null>(null);
-  const [institutions, setInstitutions] = useState<Institution[]>([]);
+  
+  const dispatch = useAppDispatch();
+  const { institutions } = useAppSelector((state) => state.institutions);
+  
   const [images, setImages] = useState<string[]>([]);
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showInstitutionPicker, setShowInstitutionPicker] = useState(false);
 
   useEffect(() => {
-    const fetchInstitutions = async () => {
-      try {
-        const data = await getInstitutions();
-        setInstitutions(data);
-      } catch (error) {
-        console.error('Error fetching institutions:', error);
-      }
-    };
-    fetchInstitutions();
-  }, []);
+    dispatch(fetchInstitutionsThunk());
+  }, [dispatch]);
 
   const pickImage = async () => {
     if (images.length >= 5) {
@@ -289,17 +286,12 @@ export default function CreateComplaintScreen() {
         </View>
 
         {/* Submit */}
-        <TouchableOpacity
-          style={[styles.submitButton, loading && { opacity: 0.6 }]}
-          onPress={handleSubmit}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.submitButtonText}>Şikayeti Gönder</Text>
-          )}
-        </TouchableOpacity>
+        <AnimatedButton 
+          title="Şikayeti Gönder" 
+          onPress={handleSubmit} 
+          loading={loading} 
+          style={{ marginTop: 24 }}
+        />
       </ThemedView>
     </ScrollView>
   );
@@ -437,17 +429,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 24,
     paddingVertical: 8,
-  },
-  submitButton: {
-    backgroundColor: '#0a7ea4',
-    padding: 18,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginTop: 24,
-  },
-  submitButtonText: {
-    color: '#fff',
-    fontSize: 17,
-    fontWeight: 'bold',
   },
 });

@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/firebaseConfig';
 import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { AnimatedButton } from '@/components/ui/AnimatedButton';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -54,13 +55,12 @@ export default function LoginScreen() {
         />
       </View>
 
-      <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={loading}>
-        {loading ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.buttonText}>Giriş Yap</Text>
-        )}
-      </TouchableOpacity>
+      <AnimatedButton 
+        title="Giriş Yap" 
+        onPress={handleLogin} 
+        loading={loading} 
+        style={styles.button}
+      />
 
       <View style={styles.footer}>
         <TouchableOpacity onPress={() => router.push('/(auth)/forgot-password')}>
@@ -104,16 +104,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   button: {
-    backgroundColor: '#0a7ea4', // Expo blue as default
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
     marginBottom: 24,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
   },
   footer: {
     alignItems: 'center',

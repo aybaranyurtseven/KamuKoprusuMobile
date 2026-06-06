@@ -5,25 +5,43 @@
 
 import { Platform } from 'react-native';
 
-const tintColorLight = '#0a7ea4';
-const tintColorDark = '#fff';
+const tintColorLight = '#3b82f6'; // Modern Blue
+const tintColorDark = '#60a5fa'; // Lighter Blue for Dark Mode
 
 export const Colors = {
   light: {
-    text: '#11181C',
-    background: '#fff',
+    text: '#0f172a', // Slate 900
+    textSecondary: '#64748b', // Slate 500
+    background: '#f8fafc', // Slate 50
+    card: 'rgba(255, 255, 255, 0.7)', // Glass effect
+    cardBorder: 'rgba(255, 255, 255, 0.5)',
     tint: tintColorLight,
-    icon: '#687076',
-    tabIconDefault: '#687076',
+    icon: '#64748b',
+    tabIconDefault: '#94a3b8',
     tabIconSelected: tintColorLight,
+    primary: '#3b82f6',
+    secondary: '#8b5cf6', // Violet
+    danger: '#ef4444',
+    success: '#10b981',
+    warning: '#f59e0b',
+    glass: 'rgba(255, 255, 255, 0.85)',
   },
   dark: {
-    text: '#ECEDEE',
-    background: '#151718',
+    text: '#f8fafc', // Slate 50
+    textSecondary: '#94a3b8', // Slate 400
+    background: '#0f172a', // Slate 900
+    card: 'rgba(30, 41, 59, 0.7)', // Glass effect dark
+    cardBorder: 'rgba(255, 255, 255, 0.1)',
     tint: tintColorDark,
-    icon: '#9BA1A6',
-    tabIconDefault: '#9BA1A6',
+    icon: '#94a3b8',
+    tabIconDefault: '#475569',
     tabIconSelected: tintColorDark,
+    primary: '#60a5fa',
+    secondary: '#a78bfa',
+    danger: '#f87171',
+    success: '#34d399',
+    warning: '#fbbf24',
+    glass: 'rgba(30, 41, 59, 0.85)',
   },
 };
 

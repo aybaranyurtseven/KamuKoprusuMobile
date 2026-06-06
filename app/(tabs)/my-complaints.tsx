@@ -5,7 +5,10 @@ import { getUserComplaints } from '@/services/firestoreService';
 import { Complaint } from '@/types/firestore';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { GlassCard } from '@/components/ui/GlassCard';
 import { useRouter } from 'expo-router';
+import { useAppDispatch, useAppSelector } from '@/store';
+import { setComplaints } from '@/store/slices/complaintsSlice';
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
   PendingModeration: { label: 'Moderatör İncelemesinde', color: '#f39c12' },
@@ -18,20 +21,28 @@ const STATUS_MAP: Record<string, { label: string; color: string }> = {
 
 export default function MyComplaintsScreen() {
   const { user } = useAuth();
-  const [complaints, setComplaints] = useState<Complaint[]>([]);
+  const dispatch = useAppDispatch();
+  const { complaints } = useAppSelector((state) => state.complaints);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
     if (!user) return;
 
-    const unsubscribe = getUserComplaints(user.uid, (data) => {
-      setComplaints(data);
-      setLoading(false);
-    });
+    const unsubscribe = getUserComplaints(
+      user.uid,
+      (data) => {
+        dispatch(setComplaints(data));
+        setLoading(false);
+      },
+      (error) => {
+        console.error(error);
+        setLoading(false); // Hata olsa da spinner dursun (ör. eksik index)
+      }
+    );
 
     return () => unsubscribe();
-  }, [user]);
+  }, [user, dispatch]);
 
   const formatDate = (timestamp: any) => {
     if (!timestamp) return '';
@@ -48,27 +59,29 @@ export default function MyComplaintsScreen() {
 
     return (
       <TouchableOpacity
-        style={styles.card}
         onPress={() => router.push({ pathname: '/complaint-detail', params: { id: item.id } })}
+        style={{ marginBottom: 14 }}
       >
-        <View style={styles.cardHeader}>
-          <Text style={styles.category}>{item.category}</Text>
-          <View style={[styles.statusBadge, { backgroundColor: statusInfo.color }]}>
-            <Text style={styles.statusText}>{statusInfo.label}</Text>
+        <GlassCard intensity={80} style={styles.cardInner}>
+          <View style={styles.cardHeader}>
+            <Text style={styles.category}>{item.category}</Text>
+            <View style={[styles.statusBadge, { backgroundColor: statusInfo.color }]}>
+              <Text style={styles.statusText}>{statusInfo.label}</Text>
+            </View>
           </View>
-        </View>
 
-        <Text style={styles.cardTitle}>{item.title}</Text>
-        <Text style={styles.cardDescription} numberOfLines={2}>{item.description}</Text>
+          <Text style={styles.cardTitle}>{item.title}</Text>
+          <Text style={styles.cardDescription} numberOfLines={2}>{item.description}</Text>
 
-        <View style={styles.cardFooter}>
-          <Text style={styles.institutionName}>📍 {item.institutionName}</Text>
-          <Text style={styles.date}>{formatDate(item.createdAt)}</Text>
-        </View>
+          <View style={styles.cardFooter}>
+            <Text style={styles.institutionName}>📍 {item.institutionName}</Text>
+            <Text style={styles.date}>{formatDate(item.createdAt)}</Text>
+          </View>
 
-        {item.mediaUrls && item.mediaUrls.length > 0 && (
-          <Text style={styles.mediaCount}>📎 {item.mediaUrls.length} medya dosyası</Text>
-        )}
+          {item.mediaUrls && item.mediaUrls.length > 0 && (
+            <Text style={styles.mediaCount}>📎 {item.mediaUrls.length} medya dosyası</Text>
+          )}
+        </GlassCard>
       </TouchableOpacity>
     );
   };
@@ -90,7 +103,7 @@ export default function MyComplaintsScreen() {
           <Text style={styles.emptyIcon}>📋</Text>
           <ThemedText style={styles.emptyTitle}>Henüz şikayetiniz yok</ThemedText>
           <ThemedText style={styles.emptySubtitle}>
-            İlk şikayetinizi oluşturmak için "Yeni Şikayet" sekmesine gidin.
+            İlk şikayetinizi oluşturmak için &quot;Yeni Şikayet&quot; sekmesine gidin.
           </ThemedText>
         </View>
       ) : (
@@ -120,18 +133,9 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     marginTop: 16,
   },
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 14,
+  cardInner: {
     padding: 16,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: '#eee',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    borderRadius: 14,
   },
   cardHeader: {
     flexDirection: 'row',

@@ -1,18 +1,17 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, ScrollView } from 'react-native';
+import { View, TextInput, StyleSheet, Alert, ScrollView } from 'react-native';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { auth, db } from '@/firebaseConfig';
-import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { AnimatedButton } from '@/components/ui/AnimatedButton';
 
 export default function RegisterScreen() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
 
   const handleRegister = async () => {
     if (name === '' || email === '' || password === '') {
@@ -73,13 +72,12 @@ export default function RegisterScreen() {
           />
         </View>
 
-        <TouchableOpacity style={styles.button} onPress={handleRegister} disabled={loading}>
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>Kayıt Ol</Text>
-          )}
-        </TouchableOpacity>
+        <AnimatedButton 
+          title="Kayıt Ol" 
+          onPress={handleRegister} 
+          loading={loading} 
+          style={styles.button}
+        />
       </ThemedView>
     </ScrollView>
   );
@@ -106,15 +104,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   button: {
-    backgroundColor: '#0a7ea4',
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
     marginBottom: 24,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
   },
 });

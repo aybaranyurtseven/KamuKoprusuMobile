@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, TextInput, StyleSheet, Alert } from 'react-native';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '@/firebaseConfig';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { AnimatedButton } from '@/components/ui/AnimatedButton';
 
 export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState('');
@@ -45,13 +46,11 @@ export default function ForgotPasswordScreen() {
         />
       </View>
 
-      <TouchableOpacity style={styles.button} onPress={handleReset} disabled={loading}>
-        {loading ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.buttonText}>Bağlantı Gönder</Text>
-        )}
-      </TouchableOpacity>
+      <AnimatedButton 
+        title="Bağlantı Gönder" 
+        onPress={handleReset} 
+        loading={loading} 
+      />
     </ThemedView>
   );
 }
@@ -77,16 +76,5 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     fontSize: 16,
-  },
-  button: {
-    backgroundColor: '#0a7ea4',
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
   },
 });

@@ -1,4 +1,4 @@
-import { collection, doc, getDoc, getDocs, setDoc, updateDoc, query, where, orderBy, onSnapshot, addDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, updateDoc, query, where, orderBy, onSnapshot, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
 import { UserData, Institution, Complaint, Badge, LEVEL_THRESHOLDS } from '../types/firestore';
 
@@ -48,28 +48,70 @@ export const createComplaint = async (data: Omit<Complaint, 'id' | 'createdAt' |
   return docRef.id;
 };
 
-export const getUserComplaints = (uid: string, callback: (complaints: Complaint[]) => void) => {
+export const getUserComplaints = (
+  uid: string,
+  callback: (complaints: Complaint[]) => void,
+  onError?: (error: Error) => void
+) => {
   const q = query(
     collection(db, 'Complaints'),
     where('userId', '==', uid),
     orderBy('createdAt', 'desc')
   );
-  return onSnapshot(q, (snapshot) => {
-    const complaints = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Complaint));
-    callback(complaints);
-  });
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const complaints = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Complaint));
+      callback(complaints);
+    },
+    (error) => {
+      console.error('getUserComplaints error:', error);
+      onError?.(error);
+    }
+  );
 };
 
-export const getInstitutionComplaints = (institutionId: string, callback: (complaints: Complaint[]) => void) => {
+export const getInstitutionComplaints = (
+  institutionId: string,
+  callback: (complaints: Complaint[]) => void,
+  onError?: (error: Error) => void
+) => {
   const q = query(
     collection(db, 'Complaints'),
     where('institutionId', '==', institutionId),
     orderBy('createdAt', 'desc')
   );
-  return onSnapshot(q, (snapshot) => {
-    const complaints = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Complaint));
-    callback(complaints);
-  });
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const complaints = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Complaint));
+      callback(complaints);
+    },
+    (error) => {
+      console.error('getInstitutionComplaints error:', error);
+      onError?.(error);
+    }
+  );
+};
+
+// Moderatör / Yönetici için: tüm şikayetleri tarihe göre dinler.
+// Tek alan (createdAt) sıralaması olduğundan composite index gerektirmez.
+export const getAllComplaints = (
+  callback: (complaints: Complaint[]) => void,
+  onError?: (error: Error) => void
+) => {
+  const q = query(collection(db, 'Complaints'), orderBy('createdAt', 'desc'));
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const complaints = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Complaint));
+      callback(complaints);
+    },
+    (error) => {
+      console.error('getAllComplaints error:', error);
+      onError?.(error);
+    }
+  );
 };
 
 export const updateComplaintStatus = async (complaintId: string, status: Complaint['status'], updatedBy: string, message: string) => {
