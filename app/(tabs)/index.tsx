@@ -1,14 +1,14 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
-import { getUserComplaints } from '@/services/firestoreService';
 import { Complaint, LEVEL_THRESHOLDS } from '@/types/firestore';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { GlassCard } from '@/components/ui/GlassCard';
-import { useAppDispatch, useAppSelector } from '@/store';
-import { setComplaints } from '@/store/slices/complaintsSlice';
+import { useUserComplaints } from '@/hooks/useUserComplaints';
+import { getStatusInfo } from '@/constants/complaintStatus';
+import { formatDate } from '@/utils/date';
 import StaffDashboard from '@/components/StaffDashboard';
 
 const STAFF_ROLES = ['InstitutionRep', 'Moderator', 'Admin', 'NGOCoordinator'];
@@ -38,51 +38,13 @@ const LEVEL_EMOJIS: Record<string, string> = {
   Diamond: '👑',
 };
 
-const STATUS_MAP: Record<string, { label: string; color: string }> = {
-  PendingModeration: { label: 'Moderatör İncelemesinde', color: '#f39c12' },
-  Approved: { label: 'Onaylandı', color: '#2ecc71' },
-  Rejected: { label: 'Reddedildi', color: '#e74c3c' },
-  InProgress: { label: 'İşlemde', color: '#3498db' },
-  Resolved: { label: 'Çözüldü', color: '#27ae60' },
-  Closed: { label: 'Kapatıldı', color: '#95a5a6' },
-};
-
 const ACTIVE_STATUSES = ['PendingModeration', 'Approved', 'InProgress'];
 const DONE_STATUSES = ['Resolved', 'Closed'];
 
 function CitizenHome() {
   const { user, userData } = useAuth();
-  const dispatch = useAppDispatch();
-  const { complaints } = useAppSelector((state) => state.complaints);
-  const [loading, setLoading] = useState(true);
+  const { complaints, loading } = useUserComplaints();
   const router = useRouter();
-
-  useEffect(() => {
-    if (!user) {
-      setLoading(false);
-      return;
-    }
-
-    const unsubscribe = getUserComplaints(
-      user.uid,
-      (data) => {
-        dispatch(setComplaints(data));
-        setLoading(false);
-      },
-      (error) => {
-        console.error(error);
-        setLoading(false); // Hata olsa da yükleme dursun (ör. eksik index)
-      }
-    );
-
-    return () => unsubscribe();
-  }, [user, dispatch]);
-
-  const formatDate = (timestamp: any) => {
-    if (!timestamp) return '';
-    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-    return date.toLocaleDateString('tr-TR', { day: '2-digit', month: 'short', year: 'numeric' });
-  };
 
   const total = complaints.length;
   const activeCount = complaints.filter((c) => ACTIVE_STATUSES.includes(c.status)).length;
@@ -180,7 +142,7 @@ function CitizenHome() {
           </View>
         ) : (
           recent.map((item: Complaint) => {
-            const statusInfo = STATUS_MAP[item.status] || { label: item.status, color: '#999' };
+            const statusInfo = getStatusInfo(item.status);
             return (
               <TouchableOpacity
                 key={item.id}
@@ -198,7 +160,7 @@ function CitizenHome() {
                   <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
                   <View style={styles.cardFooter}>
                     <Text style={styles.institutionName} numberOfLines={1}>📍 {item.institutionName}</Text>
-                    <Text style={styles.date}>{formatDate(item.createdAt)}</Text>
+                    <Text style={styles.date}>{formatDate(item.createdAt, 'short')}</Text>
                   </View>
                 </GlassCard>
               </TouchableOpacity>

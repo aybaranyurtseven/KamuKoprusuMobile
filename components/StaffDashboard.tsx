@@ -1,23 +1,12 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useAuth } from '@/context/AuthContext';
-import { getInstitutionComplaints, getAllComplaints } from '@/services/firestoreService';
-import { Complaint } from '@/types/firestore';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { GlassCard } from '@/components/ui/GlassCard';
-
-const STATUS_MAP: Record<string, { label: string; color: string }> = {
-  PendingModeration: { label: 'Moderatör İncelemesinde', color: '#f39c12' },
-  Approved: { label: 'Onaylandı', color: '#2ecc71' },
-  Rejected: { label: 'Reddedildi', color: '#e74c3c' },
-  InProgress: { label: 'İşlemde', color: '#3498db' },
-  Resolved: { label: 'Çözüldü', color: '#27ae60' },
-  Closed: { label: 'Kapatıldı', color: '#95a5a6' },
-};
-
-const MODERATOR_ROLES = ['Moderator', 'Admin', 'NGOCoordinator'];
+import { useStaffComplaints } from '@/hooks/useStaffComplaints';
+import { getStatusInfo } from '@/constants/complaintStatus';
+import { formatDate } from '@/utils/date';
 
 type FilterKey = 'all' | 'pending' | 'progress' | 'done';
 
@@ -29,45 +18,9 @@ const FILTERS: { key: FilterKey; label: string; statuses: string[] }[] = [
 ];
 
 export default function StaffDashboard() {
-  const { user, userData } = useAuth();
   const router = useRouter();
-  const [complaints, setComplaints] = useState<Complaint[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { complaints, loading, noInstitution, isModerator } = useStaffComplaints();
   const [filter, setFilter] = useState<FilterKey>('all');
-  const [noInstitution, setNoInstitution] = useState(false);
-
-  const isModerator = MODERATOR_ROLES.includes(userData?.role);
-  const institutionId = userData?.institutionId;
-
-  useEffect(() => {
-    if (!user) {
-      setLoading(false);
-      return;
-    }
-
-    const onData = (data: Complaint[]) => {
-      setComplaints(data);
-      setLoading(false);
-    };
-    const onError = (err: Error) => {
-      console.error(err);
-      setLoading(false);
-    };
-
-    let unsubscribe: (() => void) | undefined;
-    if (isModerator) {
-      unsubscribe = getAllComplaints(onData, onError);
-    } else if (institutionId) {
-      unsubscribe = getInstitutionComplaints(institutionId, onData, onError);
-    } else {
-      // Kurum temsilcisi ama institutionId atanmamış
-      setNoInstitution(true);
-      setLoading(false);
-      return;
-    }
-
-    return () => unsubscribe && unsubscribe();
-  }, [user, isModerator, institutionId]);
 
   const counts = useMemo(() => {
     const c = { pending: 0, progress: 0, done: 0 };
@@ -84,12 +37,6 @@ export default function StaffDashboard() {
     if (f.statuses.length === 0) return complaints;
     return complaints.filter((c) => f.statuses.includes(c.status));
   }, [complaints, filter]);
-
-  const formatDate = (timestamp: any) => {
-    if (!timestamp) return '';
-    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-    return date.toLocaleDateString('tr-TR', { day: '2-digit', month: 'short', year: 'numeric' });
-  };
 
   const title = isModerator ? 'Moderatör Paneli' : 'Kurum Paneli';
   const subtitle =
@@ -158,7 +105,7 @@ export default function StaffDashboard() {
           </View>
         ) : (
           filtered.map((item) => {
-            const statusInfo = STATUS_MAP[item.status] || { label: item.status, color: '#999' };
+            const statusInfo = getStatusInfo(item.status);
             return (
               <TouchableOpacity
                 key={item.id}
@@ -179,7 +126,7 @@ export default function StaffDashboard() {
                     <Text style={styles.citizen} numberOfLines={1}>
                       👤 {item.isAnonymous ? 'Anonim' : item.userName || 'Vatandaş'}
                     </Text>
-                    <Text style={styles.date}>{formatDate(item.createdAt)}</Text>
+                    <Text style={styles.date}>{formatDate(item.createdAt, 'short')}</Text>
                   </View>
                 </GlassCard>
               </TouchableOpacity>

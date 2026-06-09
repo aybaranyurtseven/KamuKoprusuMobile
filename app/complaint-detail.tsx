@@ -1,70 +1,25 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Image, ActivityIndicator, TextInput, TouchableOpacity, Alert } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
-import { doc, collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
-import { db } from '@/firebaseConfig';
-import { Complaint, ComplaintUpdate } from '@/types/firestore';
+import { Complaint } from '@/types/firestore';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useAuth } from '@/context/AuthContext';
 import { updateComplaintStatus } from '@/services/firestoreService';
+import { rewardComplaintStatus } from '@/services/gamificationService';
+import { useComplaintDetail } from '@/hooks/useComplaintDetail';
+import { COMPLAINT_STATUS, getStatusInfo } from '@/constants/complaintStatus';
+import { formatDateTime } from '@/utils/date';
 
 const MODERATOR_ROLES = ['Moderator', 'Admin', 'NGOCoordinator'];
-
-const STATUS_MAP: Record<string, { label: string; color: string; icon: string }> = {
-  PendingModeration: { label: 'Moderatör İncelemesinde', color: '#f39c12', icon: '⏳' },
-  Approved: { label: 'Onaylandı', color: '#2ecc71', icon: '✅' },
-  Rejected: { label: 'Reddedildi', color: '#e74c3c', icon: '❌' },
-  InProgress: { label: 'İşlemde', color: '#3498db', icon: '🔄' },
-  Resolved: { label: 'Çözüldü', color: '#27ae60', icon: '✔️' },
-  Closed: { label: 'Kapatıldı', color: '#95a5a6', icon: '🔒' },
-};
 
 export default function ComplaintDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user, userData } = useAuth();
-  const [complaint, setComplaint] = useState<Complaint | null>(null);
-  const [updates, setUpdates] = useState<ComplaintUpdate[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { complaint, updates, loading } = useComplaintDetail(id);
   const [selectedStatus, setSelectedStatus] = useState<Complaint['status'] | null>(null);
   const [note, setNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
-
-  useEffect(() => {
-    if (!id) return;
-
-    // Şikayeti canlı dinle (durum güncellenince banner anında yenilensin)
-    const complaintRef = doc(db, 'Complaints', id);
-    const unsubComplaint = onSnapshot(
-      complaintRef,
-      (snap) => {
-        if (snap.exists()) {
-          setComplaint({ id: snap.id, ...snap.data() } as Complaint);
-        }
-        setLoading(false);
-      },
-      (error) => {
-        console.error('Error fetching complaint:', error);
-        setLoading(false);
-      }
-    );
-
-    // Süreç geçmişini (ComplaintUpdates) dinle
-    const q = query(
-      collection(db, 'ComplaintUpdates'),
-      where('complaintId', '==', id),
-      orderBy('createdAt', 'desc')
-    );
-    const unsubUpdates = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as ComplaintUpdate));
-      setUpdates(data);
-    });
-
-    return () => {
-      unsubComplaint();
-      unsubUpdates();
-    };
-  }, [id]);
 
   const isModerator = MODERATOR_ROLES.includes(userData?.role);
   const isOwnerInstitution =
@@ -78,10 +33,23 @@ export default function ComplaintDetailScreen() {
     }
     setSubmitting(true);
     try {
-      const statusLabel = STATUS_MAP[selectedStatus]?.label || selectedStatus;
+      const statusLabel = getStatusInfo(selectedStatus).label;
       const message = note.trim() || `Durum güncellendi: ${statusLabel}`;
       const updatedBy = userData?.name || user?.email || 'Yetkili';
       await updateComplaintStatus(complaint.id, selectedStatus, updatedBy, message);
+
+      // Onay/Çözüm durumlarında şikayet sahibine XP + rozet kazandır (idempotent).
+      // Oyunlaştırma yazımı askıda kalsa bile durum güncellemesi bloke olmasın:
+      // zaman aşımı korumalı ve arka planda.
+      if (selectedStatus === 'Approved' || selectedStatus === 'Resolved') {
+        Promise.race([
+          rewardComplaintStatus(complaint, selectedStatus),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000)),
+        ]).catch((gamificationError) => {
+          console.error('Gamification error:', gamificationError);
+        });
+      }
+
       setNote('');
       setSelectedStatus(null);
       Alert.alert('Başarılı', 'Şikayet durumu güncellendi.');
@@ -91,18 +59,6 @@ export default function ComplaintDetailScreen() {
     } finally {
       setSubmitting(false);
     }
-  };
-
-  const formatDate = (timestamp: any) => {
-    if (!timestamp) return '';
-    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-    return date.toLocaleDateString('tr-TR', {
-      day: '2-digit',
-      month: 'long',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
   };
 
   if (loading) {
@@ -121,7 +77,7 @@ export default function ComplaintDetailScreen() {
     );
   }
 
-  const statusInfo = STATUS_MAP[complaint.status] || { label: complaint.status, color: '#999', icon: '❓' };
+  const statusInfo = getStatusInfo(complaint.status);
 
   return (
     <ScrollView style={{ flex: 1 }}>
@@ -141,7 +97,7 @@ export default function ComplaintDetailScreen() {
         </View>
 
         <View style={styles.metaRow}>
-          <Text style={styles.metaItem}>📅 {formatDate(complaint.createdAt)}</Text>
+          <Text style={styles.metaItem}>📅 {formatDateTime(complaint.createdAt)}</Text>
           {complaint.isAnonymous && <Text style={styles.metaItem}>🔒 Anonim</Text>}
         </View>
 
@@ -177,8 +133,8 @@ export default function ComplaintDetailScreen() {
           <View style={styles.section}>
             <ThemedText style={styles.sectionTitle}>Durumu Güncelle</ThemedText>
             <View style={styles.statusOptions}>
-              {(Object.keys(STATUS_MAP) as Complaint['status'][]).map((s) => {
-                const info = STATUS_MAP[s];
+              {(Object.keys(COMPLAINT_STATUS) as Complaint['status'][]).map((s) => {
+                const info = COMPLAINT_STATUS[s];
                 const active = selectedStatus === s;
                 return (
                   <TouchableOpacity
@@ -234,7 +190,7 @@ export default function ComplaintDetailScreen() {
           ) : (
             <View style={styles.timeline}>
               {updates.map((update, index) => {
-                const updateStatus = STATUS_MAP[update.newStatus];
+                const updateStatus = getStatusInfo(update.newStatus);
                 return (
                   <View key={update.id} style={styles.timelineItem}>
                     <View style={styles.timelineDot}>
@@ -246,7 +202,7 @@ export default function ComplaintDetailScreen() {
                         {updateStatus?.icon} {updateStatus?.label || update.newStatus}
                       </Text>
                       <Text style={styles.timelineMessage}>{update.message}</Text>
-                      <Text style={styles.timelineDate}>{formatDate(update.createdAt)}</Text>
+                      <Text style={styles.timelineDate}>{formatDateTime(update.createdAt)}</Text>
                     </View>
                   </View>
                 );

@@ -38,6 +38,9 @@ export interface Complaint {
   mediaUrls: string[];
   location?: { latitude: number; longitude: number };
   isAnonymous: boolean;
+  // Hangi durum-temelli XP ödüllerinin verildiğini takip eder (idempotency).
+  // Örn: ['Approved', 'Resolved'] → bu ödüller bir daha verilmez.
+  xpAwarded?: string[];
   createdAt: any;
   updatedAt: any;
 }
@@ -68,11 +71,19 @@ export const LEVEL_THRESHOLDS = {
   Diamond: { min: 1000, max: Infinity },
 };
 
-// XP rewards
+// XP rewards (kazanılan deneyim puanları)
 export const XP_REWARDS = {
-  firstComplaint: 10,
-  approvedComplaint: 15,
-  resolvedComplaint: 25,
-  mediaAttachment: 5,
-  extraPhoto: 2,
+  complaintCreated: 10,   // her şikayet/öneri oluşturma
+  withMedia: 5,           // fotoğraf eklenmişse ek puan
+  approvedComplaint: 15,  // moderatör onayladığında (şikayet sahibine)
+  resolvedComplaint: 25,  // kurum çözdüğünde (şikayet sahibine)
 };
+
+// Rozet değerlendirmesi için kullanıcı istatistikleri
+export interface UserStats {
+  totalComplaints: number;
+  approvedComplaints: number;
+  resolvedComplaints: number;
+  withMediaComplaints: number;
+  xp: number;
+}

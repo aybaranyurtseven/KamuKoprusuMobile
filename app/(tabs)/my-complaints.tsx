@@ -1,61 +1,20 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
-import { useAuth } from '@/context/AuthContext';
-import { getUserComplaints } from '@/services/firestoreService';
 import { Complaint } from '@/types/firestore';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { useRouter } from 'expo-router';
-import { useAppDispatch, useAppSelector } from '@/store';
-import { setComplaints } from '@/store/slices/complaintsSlice';
-
-const STATUS_MAP: Record<string, { label: string; color: string }> = {
-  PendingModeration: { label: 'Moderatör İncelemesinde', color: '#f39c12' },
-  Approved: { label: 'Onaylandı', color: '#2ecc71' },
-  Rejected: { label: 'Reddedildi', color: '#e74c3c' },
-  InProgress: { label: 'İşlemde', color: '#3498db' },
-  Resolved: { label: 'Çözüldü', color: '#27ae60' },
-  Closed: { label: 'Kapatıldı', color: '#95a5a6' },
-};
+import { useUserComplaints } from '@/hooks/useUserComplaints';
+import { getStatusInfo } from '@/constants/complaintStatus';
+import { formatDate } from '@/utils/date';
 
 export default function MyComplaintsScreen() {
-  const { user } = useAuth();
-  const dispatch = useAppDispatch();
-  const { complaints } = useAppSelector((state) => state.complaints);
-  const [loading, setLoading] = useState(true);
+  const { complaints, loading } = useUserComplaints();
   const router = useRouter();
 
-  useEffect(() => {
-    if (!user) return;
-
-    const unsubscribe = getUserComplaints(
-      user.uid,
-      (data) => {
-        dispatch(setComplaints(data));
-        setLoading(false);
-      },
-      (error) => {
-        console.error(error);
-        setLoading(false); // Hata olsa da spinner dursun (ör. eksik index)
-      }
-    );
-
-    return () => unsubscribe();
-  }, [user, dispatch]);
-
-  const formatDate = (timestamp: any) => {
-    if (!timestamp) return '';
-    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-    return date.toLocaleDateString('tr-TR', {
-      day: '2-digit',
-      month: 'long',
-      year: 'numeric',
-    });
-  };
-
   const renderComplaint = ({ item }: { item: Complaint }) => {
-    const statusInfo = STATUS_MAP[item.status] || { label: item.status, color: '#999' };
+    const statusInfo = getStatusInfo(item.status);
 
     return (
       <TouchableOpacity

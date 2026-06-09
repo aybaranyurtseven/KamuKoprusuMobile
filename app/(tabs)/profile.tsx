@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { useAuth } from '@/context/AuthContext';
-import { getUserData, getBadges } from '@/services/firestoreService';
-import { UserData, Badge, LEVEL_THRESHOLDS } from '@/types/firestore';
+import { LEVEL_THRESHOLDS } from '@/types/firestore';
+import { BADGE_DEFINITIONS } from '@/constants/badges';
+import { useUserData } from '@/hooks/useUserData';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { AnimatedButton } from '@/components/ui/AnimatedButton';
@@ -24,27 +25,8 @@ const LEVEL_EMOJIS: Record<string, string> = {
 };
 
 export default function ProfileScreen() {
-  const { user, logout } = useAuth();
-  const [userData, setUserData] = useState<UserData | null>(null);
-  const [allBadges, setAllBadges] = useState<Badge[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      if (user) {
-        try {
-          const data = await getUserData(user.uid);
-          setUserData(data);
-          const badges = await getBadges();
-          setAllBadges(badges);
-        } catch (error) {
-          console.error('Error fetching profile:', error);
-        }
-      }
-      setLoading(false);
-    };
-    fetchData();
-  }, [user]);
+  const { logout } = useAuth();
+  const { userData, loading } = useUserData();
 
   if (loading) {
     return (
@@ -122,12 +104,14 @@ export default function ProfileScreen() {
 
         {/* Badges Section */}
         <View style={styles.section}>
-          <ThemedText style={styles.sectionTitle}>Rozetler</ThemedText>
-          {allBadges.length === 0 ? (
+          <ThemedText style={styles.sectionTitle}>
+            Rozetler ({earnedBadges.length}/{BADGE_DEFINITIONS.length})
+          </ThemedText>
+          {BADGE_DEFINITIONS.length === 0 ? (
             <ThemedText style={styles.emptyText}>Henüz rozet tanımlanmamış.</ThemedText>
           ) : (
             <View style={styles.badgeGrid}>
-              {allBadges.map((badge) => {
+              {BADGE_DEFINITIONS.map((badge) => {
                 const isEarned = earnedBadges.includes(badge.id);
                 return (
                   <View key={badge.id} style={[styles.badgeCard, !isEarned && styles.badgeCardLocked]}>

@@ -1,19 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   Alert, ScrollView, Image, Switch
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, storage } from '@/firebaseConfig';
-import { createComplaint } from '@/services/firestoreService';
 import { Institution } from '@/types/firestore';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { AnimatedButton } from '@/components/ui/AnimatedButton';
-import { useAuth } from '@/context/AuthContext';
-import { useAppDispatch, useAppSelector } from '@/store';
-import { fetchInstitutionsThunk } from '@/store/slices/institutionsSlice';
+import { RewardModal } from '@/components/ui/RewardModal';
+import { useInstitutions } from '@/hooks/useInstitutions';
+import { useCreateComplaint } from '@/hooks/useCreateComplaint';
 
 const CATEGORIES = [
   { label: 'Ulaşım', value: 'Ulaşım' },
@@ -26,23 +23,16 @@ const CATEGORIES = [
 ];
 
 export default function CreateComplaintScreen() {
-  const { user, userData } = useAuth();
+  const { institutions } = useInstitutions();
+  const { submit, submitting, reward, clearReward } = useCreateComplaint();
+
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedInstitution, setSelectedInstitution] = useState<Institution | null>(null);
-  
-  const dispatch = useAppDispatch();
-  const { institutions } = useAppSelector((state) => state.institutions);
-  
   const [images, setImages] = useState<string[]>([]);
   const [isAnonymous, setIsAnonymous] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [showInstitutionPicker, setShowInstitutionPicker] = useState(false);
-
-  useEffect(() => {
-    dispatch(fetchInstitutionsThunk());
-  }, [dispatch]);
 
   const pickImage = async () => {
     if (images.length >= 5) {
@@ -93,14 +83,6 @@ export default function CreateComplaintScreen() {
     setImages(images.filter((_, i) => i !== index));
   };
 
-  const uploadImage = async (uri: string, complaintId: string, index: number): Promise<string> => {
-    const response = await fetch(uri);
-    const blob = await response.blob();
-    const storageRef = ref(storage, `complaints/${complaintId}/${Date.now()}_${index}.jpg`);
-    await uploadBytes(storageRef, blob);
-    return await getDownloadURL(storageRef);
-  };
-
   const handleSubmit = async () => {
     if (!title.trim()) {
       Alert.alert('Hata', 'Lütfen bir başlık girin.');
@@ -118,49 +100,27 @@ export default function CreateComplaintScreen() {
       Alert.alert('Hata', 'Lütfen bir kurum seçin.');
       return;
     }
-    if (!user) return;
-
-    setLoading(true);
+    // Tüm backend diyalogu (kayıt + medya + oyunlaştırma) hook'ta. Ekran yalnızca
+    // doğrulama, form sıfırlama ve ödül modalı ile ilgilenir.
     try {
-      // Create complaint first without media
-      const complaintId = await createComplaint({
-        userId: user.uid,
-        userName: isAnonymous ? 'Anonim' : (userData?.name || 'Bilinmiyor'),
-        institutionId: selectedInstitution.id,
-        institutionName: selectedInstitution.name,
-        title: title.trim(),
-        description: description.trim(),
+      const ok = await submit({
+        title,
+        description,
         category: selectedCategory,
-        status: 'PendingModeration',
-        type: 'Complaint',
-        mediaUrls: [],
+        institution: selectedInstitution,
+        images,
         isAnonymous,
       });
-
-      // Upload images if any
-      if (images.length > 0) {
-        const uploadPromises = images.map((uri, index) => uploadImage(uri, complaintId, index));
-        const urls = await Promise.all(uploadPromises);
-
-        // Update complaint with media URLs
-        const { doc, updateDoc } = await import('firebase/firestore');
-        const complaintRef = doc(db, 'Complaints', complaintId);
-        await updateDoc(complaintRef, { mediaUrls: urls });
+      if (ok) {
+        setTitle('');
+        setDescription('');
+        setSelectedCategory('');
+        setSelectedInstitution(null);
+        setImages([]);
+        setIsAnonymous(false);
       }
-
-      Alert.alert('Başarılı', 'Şikayetiniz başarıyla gönderildi! Moderatör incelemesinden sonra ilgili kuruma iletilecektir.');
-
-      // Reset form
-      setTitle('');
-      setDescription('');
-      setSelectedCategory('');
-      setSelectedInstitution(null);
-      setImages([]);
-      setIsAnonymous(false);
     } catch (error: any) {
-      Alert.alert('Hata', 'Şikayet gönderilirken bir sorun oluştu: ' + error.message);
-    } finally {
-      setLoading(false);
+      Alert.alert('Hata', 'Şikayet gönderilirken bir sorun oluştu: ' + (error?.message ?? error));
     }
   };
 
@@ -286,13 +246,22 @@ export default function CreateComplaintScreen() {
         </View>
 
         {/* Submit */}
-        <AnimatedButton 
-          title="Şikayeti Gönder" 
-          onPress={handleSubmit} 
-          loading={loading} 
+        <AnimatedButton
+          title="Şikayeti Gönder"
+          onPress={handleSubmit}
+          loading={submitting}
           style={{ marginTop: 24 }}
         />
       </ThemedView>
+
+      <RewardModal
+        visible={reward !== null}
+        xpGained={reward?.xpGained ?? 0}
+        leveledUp={reward?.leveledUp}
+        newLevel={reward?.newLevel}
+        newBadges={reward?.newBadges}
+        onClose={clearReward}
+      />
     </ScrollView>
   );
 }

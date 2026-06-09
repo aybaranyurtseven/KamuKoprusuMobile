@@ -8,6 +8,7 @@ interface AuthContextType {
   userData: any | null;
   loading: boolean;
   logout: () => Promise<void>;
+  refreshUserData: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -15,6 +16,7 @@ const AuthContext = createContext<AuthContextType>({
   userData: null,
   loading: true,
   logout: async () => { },
+  refreshUserData: async () => { },
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -48,6 +50,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return unsubscribe;
   }, []);
 
+  // XP/rozet kazanımı sonrası kullanıcı verisini Firestore'dan tazeler.
+  const refreshUserData = async () => {
+    const current = auth.currentUser;
+    if (!current) return;
+    try {
+      const docSnap = await getDoc(doc(db, 'Users', current.uid));
+      if (docSnap.exists()) setUserData(docSnap.data());
+    } catch (error) {
+      console.error("Error refreshing user data:", error);
+    }
+  };
+
   const logout = async () => {
     try {
       await signOut(auth);
@@ -57,7 +71,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, userData, loading, logout }}>
+    <AuthContext.Provider value={{ user, userData, loading, logout, refreshUserData }}>
       {children}
     </AuthContext.Provider>
   );
