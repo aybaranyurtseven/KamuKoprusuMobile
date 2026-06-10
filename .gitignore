@@ -44,3 +44,12 @@ app-example
 
 # Office temp/lock files
 ~$*
+
+# Proje belgeleri / çıktıları (yerelde tutulur, repoya dahil edilmez)
+*.pdf
+*.docx
+implementation_plan.md
+task.md
+video_senaryolari.md
+video_taslak_hafta1.md
+video_taslak_hafta5.md
