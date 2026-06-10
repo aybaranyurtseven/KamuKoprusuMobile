@@ -25,6 +25,13 @@ export const Colors = {
     success: '#10b981',
     warning: '#f59e0b',
     glass: 'rgba(255, 255, 255, 0.85)',
+    // Semantik yüzey tokenları (form/kart/çip) — koyu tema uyumu için
+    inputBg: '#f1f5f9',     // Slate 100
+    inputText: '#0f172a',
+    placeholder: '#94a3b8', // Slate 400
+    border: '#e2e8f0',      // Slate 200
+    cardSolid: '#ffffff',
+    chipBg: '#eef2f6',
   },
   dark: {
     text: '#f8fafc', // Slate 50
@@ -42,6 +49,13 @@ export const Colors = {
     success: '#34d399',
     warning: '#fbbf24',
     glass: 'rgba(30, 41, 59, 0.85)',
+    // Semantik yüzey tokenları (form/kart/çip) — koyu tema uyumu için
+    inputBg: '#1e293b',     // Slate 800
+    inputText: '#f8fafc',
+    placeholder: '#64748b', // Slate 500
+    border: '#334155',      // Slate 700
+    cardSolid: '#1e293b',
+    chipBg: '#334155',
   },
 };
 

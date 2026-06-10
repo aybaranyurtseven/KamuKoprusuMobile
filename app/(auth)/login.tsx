@@ -6,16 +6,21 @@ import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { AnimatedButton } from '@/components/ui/AnimatedButton';
+import { Colors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useTranslation } from '@/context/LanguageContext';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const theme = Colors[useColorScheme() ?? 'light'];
+  const { t } = useTranslation();
   const router = useRouter();
 
   const handleLogin = async () => {
     if (email === '' || password === '') {
-      Alert.alert('Hata', 'Lütfen tüm alanları doldurun.');
+      Alert.alert('Hata', t('auth.fillAll'));
       return;
     }
     
@@ -32,45 +37,45 @@ export default function LoginScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <ThemedText style={styles.title} type="title">Kamu Köprüsü</ThemedText>
-      <ThemedText style={styles.subtitle}>Giriş Yap</ThemedText>
+      <ThemedText style={styles.title} type="title">{t('auth.appName')}</ThemedText>
+      <ThemedText style={styles.subtitle}>{t('auth.login')}</ThemedText>
 
       <View style={styles.inputContainer}>
         <TextInput
-          style={styles.input}
-          placeholder="E-posta Adresi"
-          placeholderTextColor="#999"
+          style={[styles.input, { backgroundColor: theme.inputBg, color: theme.inputText }]}
+          placeholder={t('auth.email')}
+          placeholderTextColor={theme.placeholder}
           value={email}
           onChangeText={setEmail}
           autoCapitalize="none"
           keyboardType="email-address"
         />
         <TextInput
-          style={styles.input}
-          placeholder="Şifre"
-          placeholderTextColor="#999"
+          style={[styles.input, { backgroundColor: theme.inputBg, color: theme.inputText }]}
+          placeholder={t('auth.password')}
+          placeholderTextColor={theme.placeholder}
           value={password}
           onChangeText={setPassword}
           secureTextEntry
         />
       </View>
 
-      <AnimatedButton 
-        title="Giriş Yap" 
-        onPress={handleLogin} 
-        loading={loading} 
+      <AnimatedButton
+        title={t('auth.login')}
+        onPress={handleLogin}
+        loading={loading}
         style={styles.button}
       />
 
       <View style={styles.footer}>
         <TouchableOpacity onPress={() => router.push('/(auth)/forgot-password')}>
-          <ThemedText style={styles.link}>Şifremi Unuttum</ThemedText>
+          <ThemedText style={styles.link}>{t('auth.forgotPassword')}</ThemedText>
         </TouchableOpacity>
-        
+
         <View style={styles.registerContainer}>
-          <ThemedText>Hesabın yok mu? </ThemedText>
+          <ThemedText>{t('auth.noAccount')}</ThemedText>
           <TouchableOpacity onPress={() => router.push('/(auth)/register')}>
-            <ThemedText style={styles.link}>Kayıt Ol</ThemedText>
+            <ThemedText style={styles.link}>{t('auth.register')}</ThemedText>
           </TouchableOpacity>
         </View>
       </View>

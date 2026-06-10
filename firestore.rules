@@ -1,0 +1,87 @@
+rules_version = '2';
+
+// Kamu Köprüsü — Firestore güvenlik kuralları
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+    // Bir güncellemede yalnızca verilen alanların değiştiğini doğrular.
+    function onlyChanges(fields) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(fields);
+    }
+
+    // ── Users ───────────────────────────────────────────────
+    match /Users/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isOwner(userId);
+      // Sahibi kendi profilini (ad, telefon, avatar, pushToken) güncelleyebilir.
+      // Ayrıca oyunlaştırma için herhangi bir oturum açmış kullanıcı YALNIZCA
+      // xp / level / badges alanlarını güncelleyebilir (yetkili, vatandaşa
+      // XP/rozet verirken başka bir kullanıcının belgesine yazar).
+      allow update: if isOwner(userId)
+                    || (isSignedIn() && onlyChanges(['xp', 'level', 'badges']));
+      allow delete: if false;
+    }
+
+    // ── Institutions ────────────────────────────────────────
+    // Okunur; yazma yönetimsel (konsol / admin SDK).
+    match /Institutions/{id} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    // ── Complaints ──────────────────────────────────────────
+    match /Complaints/{id} {
+      allow read: if isSignedIn();
+      // Yeni şikayet yalnızca kendi adına oluşturulabilir.
+      allow create: if isSignedIn()
+                    && request.resource.data.userId == request.auth.uid;
+      // Durum güncelleme (yetkili), xpAwarded (oyunlaştırma) ve mediaUrls
+      // (oluşturan) güncellemeleri için oturum açmış kullanıcılara izin verilir.
+      allow update: if isSignedIn();
+      // Silme: yalnızca sahibi ve henüz incelenmemiş (PendingModeration) şikayet.
+      allow delete: if isSignedIn()
+                    && resource.data.userId == request.auth.uid
+                    && resource.data.status == 'PendingModeration';
+    }
+
+    // ── ComplaintUpdates (süreç geçmişi) ────────────────────
+    match /ComplaintUpdates/{id} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if false;
+    }
+
+    // ── Badges (rozet tanımları) ────────────────────────────
+    match /Badges/{id} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    // ── ComplaintMessages (vatandaş ↔ kurum yazışması) ──────
+    match /ComplaintMessages/{id} {
+      allow read: if isSignedIn();
+      // Mesaj yalnızca kendi adına gönderilebilir.
+      allow create: if isSignedIn() && request.resource.data.senderId == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    // ── Notifications (uygulama içi bildirimler) ────────────
+    match /Notifications/{id} {
+      // Yalnızca bildirimin sahibi okuyabilir.
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      // Durum güncelleyen yetkili, sahibi adına bildirim oluşturur.
+      allow create: if isSignedIn();
+      // Sahip yalnızca 'read' alanını güncelleyebilir (okundu işaretleme).
+      allow update: if isSignedIn()
+                    && resource.data.userId == request.auth.uid
+                    && onlyChanges(['read']);
+      allow delete: if false;
+    }
+  }
+}

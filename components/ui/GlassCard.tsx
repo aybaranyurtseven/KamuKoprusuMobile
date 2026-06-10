@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, ViewProps } from 'react-native';
+import { StyleSheet, ViewProps } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Colors } from '@/constants/theme';

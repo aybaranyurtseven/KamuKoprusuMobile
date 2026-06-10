@@ -5,10 +5,15 @@ import { auth } from '@/firebaseConfig';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { AnimatedButton } from '@/components/ui/AnimatedButton';
+import { Colors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useTranslation } from '@/context/LanguageContext';
 
 export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
+  const theme = Colors[useColorScheme() ?? 'light'];
+  const { t } = useTranslation();
 
   const handleReset = async () => {
     if (email === '') {
@@ -29,16 +34,14 @@ export default function ForgotPasswordScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <ThemedText style={styles.title} type="subtitle">Şifrenizi Mi Unuttunuz?</ThemedText>
-      <ThemedText style={styles.description}>
-        Kayıtlı e-posta adresinizi girin, size şifre sıfırlama bağlantısı gönderelim.
-      </ThemedText>
+      <ThemedText style={styles.title} type="subtitle">{t('auth.forgotTitle')}</ThemedText>
+      <ThemedText style={styles.description}>{t('auth.forgotDesc')}</ThemedText>
 
       <View style={styles.inputContainer}>
         <TextInput
-          style={styles.input}
-          placeholder="E-posta Adresi"
-          placeholderTextColor="#999"
+          style={[styles.input, { backgroundColor: theme.inputBg, color: theme.inputText }]}
+          placeholder={t('auth.email')}
+          placeholderTextColor={theme.placeholder}
           value={email}
           onChangeText={setEmail}
           autoCapitalize="none"
@@ -46,10 +49,10 @@ export default function ForgotPasswordScreen() {
         />
       </View>
 
-      <AnimatedButton 
-        title="Bağlantı Gönder" 
-        onPress={handleReset} 
-        loading={loading} 
+      <AnimatedButton
+        title={t('auth.sendLink')}
+        onPress={handleReset}
+        loading={loading}
       />
     </ThemedView>
   );

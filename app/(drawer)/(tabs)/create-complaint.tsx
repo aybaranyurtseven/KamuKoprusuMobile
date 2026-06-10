@@ -11,18 +11,13 @@ import { AnimatedButton } from '@/components/ui/AnimatedButton';
 import { RewardModal } from '@/components/ui/RewardModal';
 import { useInstitutions } from '@/hooks/useInstitutions';
 import { useCreateComplaint } from '@/hooks/useCreateComplaint';
-
-const CATEGORIES = [
-  { label: 'Ulaşım', value: 'Ulaşım' },
-  { label: 'Sağlık', value: 'Sağlık' },
-  { label: 'Eğitim', value: 'Eğitim' },
-  { label: 'Altyapı', value: 'Altyapı' },
-  { label: 'Çevre', value: 'Çevre' },
-  { label: 'Güvenlik', value: 'Güvenlik' },
-  { label: 'Diğer', value: 'Diğer' },
-];
+import { useDeviceLocation, DeviceLocation } from '@/hooks/useDeviceLocation';
+import { COMPLAINT_CATEGORIES as CATEGORIES } from '@/constants/categories';
+import { Colors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export default function CreateComplaintScreen() {
+  const theme = Colors[useColorScheme() ?? 'light'];
   const { institutions } = useInstitutions();
   const { submit, submitting, reward, clearReward } = useCreateComplaint();
 
@@ -33,6 +28,13 @@ export default function CreateComplaintScreen() {
   const [images, setImages] = useState<string[]>([]);
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [showInstitutionPicker, setShowInstitutionPicker] = useState(false);
+  const [location, setLocation] = useState<DeviceLocation | null>(null);
+  const { fetchLocation, loading: locationLoading } = useDeviceLocation();
+
+  const handleAddLocation = async () => {
+    const result = await fetchLocation();
+    if (result) setLocation(result);
+  };
 
   const pickImage = async () => {
     if (images.length >= 5) {
@@ -110,6 +112,7 @@ export default function CreateComplaintScreen() {
         institution: selectedInstitution,
         images,
         isAnonymous,
+        location: location ?? undefined,
       });
       if (ok) {
         setTitle('');
@@ -118,6 +121,7 @@ export default function CreateComplaintScreen() {
         setSelectedInstitution(null);
         setImages([]);
         setIsAnonymous(false);
+        setLocation(null);
       }
     } catch (error: any) {
       Alert.alert('Hata', 'Şikayet gönderilirken bir sorun oluştu: ' + (error?.message ?? error));
@@ -132,9 +136,9 @@ export default function CreateComplaintScreen() {
         {/* Title */}
         <ThemedText style={styles.label}>Başlık *</ThemedText>
         <TextInput
-          style={styles.input}
+          style={[styles.input, { backgroundColor: theme.inputBg, color: theme.inputText }]}
           placeholder="Şikayetinizin başlığı"
-          placeholderTextColor="#999"
+          placeholderTextColor={theme.placeholder}
           value={title}
           onChangeText={setTitle}
           maxLength={100}
@@ -143,9 +147,9 @@ export default function CreateComplaintScreen() {
         {/* Description */}
         <ThemedText style={styles.label}>Açıklama *</ThemedText>
         <TextInput
-          style={[styles.input, styles.textArea]}
+          style={[styles.input, styles.textArea, { backgroundColor: theme.inputBg, color: theme.inputText }]}
           placeholder="Şikayetinizi detaylı bir şekilde açıklayın..."
-          placeholderTextColor="#999"
+          placeholderTextColor={theme.placeholder}
           value={description}
           onChangeText={setDescription}
           multiline
@@ -156,50 +160,51 @@ export default function CreateComplaintScreen() {
         {/* Category */}
         <ThemedText style={styles.label}>Kategori *</ThemedText>
         <View style={styles.categoryGrid}>
-          {CATEGORIES.map((cat) => (
-            <TouchableOpacity
-              key={cat.value}
-              style={[
-                styles.categoryChip,
-                selectedCategory === cat.value && styles.categoryChipSelected,
-              ]}
-              onPress={() => setSelectedCategory(cat.value)}
-            >
-              <Text style={[
-                styles.categoryChipText,
-                selectedCategory === cat.value && styles.categoryChipTextSelected,
-              ]}>
-                {cat.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
+          {CATEGORIES.map((cat) => {
+            const selected = selectedCategory === cat.value;
+            return (
+              <TouchableOpacity
+                key={cat.value}
+                style={[
+                  styles.categoryChip,
+                  { backgroundColor: theme.chipBg, borderColor: theme.border },
+                  selected && { backgroundColor: theme.primary, borderColor: theme.primary },
+                ]}
+                onPress={() => setSelectedCategory(cat.value)}
+              >
+                <Text style={[styles.categoryChipText, { color: selected ? '#fff' : theme.textSecondary }]}>
+                  {cat.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
         {/* Institution */}
         <ThemedText style={styles.label}>Kurum *</ThemedText>
         <TouchableOpacity
-          style={styles.input}
+          style={[styles.input, { backgroundColor: theme.inputBg }]}
           onPress={() => setShowInstitutionPicker(!showInstitutionPicker)}
         >
-          <Text style={{ color: selectedInstitution ? '#333' : '#999', fontSize: 16 }}>
+          <Text style={{ color: selectedInstitution ? theme.inputText : theme.placeholder, fontSize: 16 }}>
             {selectedInstitution ? selectedInstitution.name : 'Kurum seçin...'}
           </Text>
         </TouchableOpacity>
         {showInstitutionPicker && (
-          <View style={styles.pickerDropdown}>
+          <View style={[styles.pickerDropdown, { backgroundColor: theme.cardSolid, borderColor: theme.border }]}>
             {institutions.length === 0 ? (
-              <Text style={styles.emptyPickerText}>Henüz kurum tanımlanmamış</Text>
+              <Text style={[styles.emptyPickerText, { color: theme.placeholder }]}>Henüz kurum tanımlanmamış</Text>
             ) : (
               institutions.map((inst) => (
                 <TouchableOpacity
                   key={inst.id}
-                  style={styles.pickerItem}
+                  style={[styles.pickerItem, { borderBottomColor: theme.border }]}
                   onPress={() => {
                     setSelectedInstitution(inst);
                     setShowInstitutionPicker(false);
                   }}
                 >
-                  <Text style={styles.pickerItemText}>{inst.name}</Text>
+                  <Text style={[styles.pickerItemText, { color: theme.text }]}>{inst.name}</Text>
                 </TouchableOpacity>
               ))
             )}
@@ -233,6 +238,35 @@ export default function CreateComplaintScreen() {
               </View>
             ))}
           </View>
+        )}
+
+        {/* Konum */}
+        <ThemedText style={styles.label}>Konum (opsiyonel)</ThemedText>
+        {location ? (
+          <View style={styles.locationCard}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.locationAddress} numberOfLines={2}>
+                📍 {location.address || 'Konum eklendi'}
+              </Text>
+              <Text style={styles.locationCoords}>
+                {location.latitude.toFixed(5)}, {location.longitude.toFixed(5)}
+              </Text>
+            </View>
+            <TouchableOpacity onPress={() => setLocation(null)} style={styles.locationRemove}>
+              <Text style={styles.removeImageText}>✕</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <TouchableOpacity
+            style={styles.locationButton}
+            onPress={handleAddLocation}
+            disabled={locationLoading}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.locationButtonText}>
+              {locationLoading ? '📍 Konum alınıyor…' : '📍 Mevcut Konumu Ekle'}
+            </Text>
+          </TouchableOpacity>
         )}
 
         {/* Anonymous Toggle */}
@@ -398,5 +432,49 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 24,
     paddingVertical: 8,
+  },
+  locationButton: {
+    backgroundColor: '#f0f9fc',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#d0eaf3',
+    borderStyle: 'dashed',
+    marginTop: 4,
+  },
+  locationButtonText: {
+    fontSize: 14,
+    color: '#0a7ea4',
+    fontWeight: '600',
+  },
+  locationCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#eafaf1',
+    borderRadius: 12,
+    padding: 14,
+    marginTop: 4,
+    borderWidth: 1,
+    borderColor: '#cdeeda',
+  },
+  locationAddress: {
+    fontSize: 14,
+    color: '#1e7e4f',
+    fontWeight: '600',
+  },
+  locationCoords: {
+    fontSize: 12,
+    color: '#5a8f74',
+    marginTop: 2,
+  },
+  locationRemove: {
+    backgroundColor: '#e74c3c',
+    borderRadius: 12,
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 10,
   },
 });

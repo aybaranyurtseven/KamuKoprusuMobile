@@ -12,6 +12,7 @@ export interface UserData {
   institutionId?: string;
   phone?: string;
   avatar?: string;
+  pushToken?: string; // Expo push token (durum bildirimleri için)
 }
 
 export interface Institution {
@@ -36,11 +37,14 @@ export interface Complaint {
   status: 'PendingModeration' | 'Approved' | 'Rejected' | 'InProgress' | 'Resolved' | 'Closed';
   type: 'Complaint' | 'Suggestion';
   mediaUrls: string[];
-  location?: { latitude: number; longitude: number };
+  location?: { latitude: number; longitude: number; address?: string };
   isAnonymous: boolean;
   // Hangi durum-temelli XP ödüllerinin verildiğini takip eder (idempotency).
   // Örn: ['Approved', 'Resolved'] → bu ödüller bir daha verilmez.
   xpAwarded?: string[];
+  // Çözüm sonrası vatandaş değerlendirmesi (1-5) ve yorum.
+  rating?: number;
+  ratingComment?: string;
   createdAt: any;
   updatedAt: any;
 }
@@ -51,6 +55,28 @@ export interface ComplaintUpdate {
   updatedBy: string;
   message: string;
   newStatus: string;
+  createdAt: any;
+}
+
+export interface ComplaintMessage {
+  id: string;
+  complaintId: string;
+  senderId: string;
+  senderName: string;
+  senderRole: string;
+  text: string;
+  createdAt: any;
+}
+
+export interface AppNotification {
+  id: string;
+  userId: string;          // bildirimin sahibi (şikayet sahibi)
+  complaintId: string;
+  complaintTitle: string;
+  type?: 'status' | 'message'; // bildirim türü (varsayılan: status)
+  newStatus?: string;      // status türü için
+  message: string;
+  read: boolean;
   createdAt: any;
 }
 

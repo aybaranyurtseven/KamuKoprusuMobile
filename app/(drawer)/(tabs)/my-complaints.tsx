@@ -6,11 +6,17 @@ import { ThemedView } from '@/components/themed-view';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { useRouter } from 'expo-router';
 import { useUserComplaints } from '@/hooks/useUserComplaints';
+import { useComplaintFilters } from '@/hooks/useComplaintFilters';
+import { ComplaintFilterBar } from '@/components/ComplaintFilterBar';
 import { getStatusInfo } from '@/constants/complaintStatus';
 import { formatDate } from '@/utils/date';
+import { Colors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export default function MyComplaintsScreen() {
   const { complaints, loading } = useUserComplaints();
+  const filters = useComplaintFilters(complaints);
+  const theme = Colors[useColorScheme() ?? 'light'];
   const router = useRouter();
 
   const renderComplaint = ({ item }: { item: Complaint }) => {
@@ -29,12 +35,12 @@ export default function MyComplaintsScreen() {
             </View>
           </View>
 
-          <Text style={styles.cardTitle}>{item.title}</Text>
-          <Text style={styles.cardDescription} numberOfLines={2}>{item.description}</Text>
+          <Text style={[styles.cardTitle, { color: theme.text }]}>{item.title}</Text>
+          <Text style={[styles.cardDescription, { color: theme.textSecondary }]} numberOfLines={2}>{item.description}</Text>
 
           <View style={styles.cardFooter}>
-            <Text style={styles.institutionName}>📍 {item.institutionName}</Text>
-            <Text style={styles.date}>{formatDate(item.createdAt)}</Text>
+            <Text style={[styles.institutionName, { color: theme.textSecondary }]}>📍 {item.institutionName}</Text>
+            <Text style={[styles.date, { color: theme.placeholder }]}>{formatDate(item.createdAt)}</Text>
           </View>
 
           {item.mediaUrls && item.mediaUrls.length > 0 && (
@@ -67,9 +73,19 @@ export default function MyComplaintsScreen() {
         </View>
       ) : (
         <FlatList
-          data={complaints}
+          data={filters.filtered}
           keyExtractor={(item) => item.id}
           renderItem={renderComplaint}
+          ListHeaderComponent={<ComplaintFilterBar filters={filters} />}
+          ListEmptyComponent={
+            <View style={styles.emptyFiltered}>
+              <Text style={styles.emptyIcon}>🔍</Text>
+              <ThemedText style={styles.emptyTitle}>Sonuç bulunamadı</ThemedText>
+              <ThemedText style={styles.emptySubtitle}>
+                Arama veya filtreleri değiştirmeyi deneyin.
+              </ThemedText>
+            </View>
+          }
           contentContainerStyle={{ paddingBottom: 20 }}
           showsVerticalScrollIndicator={false}
         />
@@ -158,6 +174,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingTop: 80,
+  },
+  emptyFiltered: {
+    alignItems: 'center',
+    paddingTop: 40,
   },
   emptyIcon: {
     fontSize: 64,

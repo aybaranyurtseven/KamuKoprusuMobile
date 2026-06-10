@@ -1,4 +1,4 @@
-# Kamu Köprüsü – Video Senaryoları (Hafta 1, 3, 4, 5, 6 & 7)
+# Kamu Köprüsü – Video Senaryoları (Hafta 1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 & 15)
 
 > Format: Her video **2–4 dakika**, samimi/anlatıcı ton.
 > Her sahnede **🎬 Ne göstereceksin** (ekran) ve **🎤 Ne söyleyeceksin** (anlatım) ayrı veriliyor.
@@ -245,6 +245,302 @@
 **🎬 Ne göstereceksin:** Uygulamada hızlıca gezin: ana sayfa, şikayetlerim, yeni şikayet gönder (ödül modalı hâlâ çıkıyor), detay ekranı. Her şeyin önceki gibi sorunsuz çalıştığını göster.
 **🎤 Ne söyleyeceksin:**
 "Ve en güzel kısmı: uygulama kullanıcı açısından hiç değişmedi — her şey aynı çalışıyor, şikayet gönderiyorum, ödülümü alıyorum. Ama artık kodun arkası çok daha temiz, test edilebilir ve bakımı kolay. Özetle bu hafta; veritabanı iletişimini özel hook'lara soyutladım, kopya kodu yok ettim ve tekrar eden sabitleri tek kaynağa taşıdım. İzlediğiniz için teşekkürler!"
+
+---
+
+## 🎥 VIDEO 6 — Hafta 8: Push Bildirimleri
+
+**Hedef süre:** ~3.5 dakika
+**Ana mesaj:** "Bu hafta projenin en önemli şeffaflık özelliğini ekledim: bir kurum şikayetin durumunu güncellediğinde, vatandaşa anlık bir push bildirimi gidiyor ve bildirime dokununca doğrudan ilgili şikayetin detayına açılıyor."
+
+### Sahne 1 — Açılış ve "Neden?" (0:00 – 0:30)
+**🎬 Ne göstereceksin:** Uygulamada bir şikayetin detay ekranı, "Süreç Geçmişi" görünüyor.
+**🎤 Ne söyleyeceksin:**
+"Merhaba, Kamu Köprüsü'nün sekizinci hafta videosu. Şimdiye kadar vatandaş, şikayetinin durumunu görmek için uygulamayı açıp kontrol etmek zorundaydı. Bu hafta bunu tersine çevirdim: artık durum değişince uygulama vatandaşa kendisi haber veriyor. Yani proje yönergesinde de vurgulanan, push bildirimleriyle şeffaf süreç takibini ekledim."
+
+### Sahne 2 — İzin ve Token Kaydı (0:30 – 1:15)
+**🎬 Ne göstereceksin:** `services/notificationService.ts`'i aç; `registerForPushNotificationsAsync` fonksiyonunu göster — Android kanalı, izin isteği ve `getExpoPushTokenAsync`. Sonra `hooks/usePushNotifications.ts`'e geç; giriş yapınca token alınıp `updateUserData` ile kullanıcının Firestore kaydına yazıldığı `useEffect`'i göster.
+**🎤 Ne söyleyeceksin:**
+"Bildirim göndermek için önce her cihazın benzersiz bir adresi olması lazım — buna push token deniyor. `notificationService` içindeki `registerForPushNotificationsAsync` kullanıcıdan bildirim izni istiyor ve Expo'dan bu token'ı alıyor. `usePushNotifications` hook'um da kullanıcı giriş yapar yapmaz bu token'ı alıp Firestore'daki kullanıcı kaydına yazıyor. Böylece 'bu kullanıcıya nasıl ulaşırım' bilgisi veritabanında hazır duruyor."
+
+### Sahne 3 — Bildirim Gönderme (Expo Push API) (1:15 – 2:00)
+**🎬 Ne göstereceksin:** `notificationService.ts`'te `sendExpoPush` fonksiyonunu göster — `fetch` ile Expo Push API'ye POST. Sonra `notifyComplaintStatus`'ı göster: şikayet sahibinin kaydından `pushToken`'ı çekip Türkçe bir mesajla bildirim gönderiyor.
+**🎤 Ne söyleyeceksin:**
+"Token elimizde; peki bildirimi nasıl gönderiyorum? `sendExpoPush` fonksiyonu, `fetch` ile Expo'nun Push API'sine bir HTTP isteği atıyor — yönergedeki harici servislere Fetch ile asenkron istek atma gereksinimini de burada karşılıyorum. `notifyComplaintStatus` ise işin mantığını kuruyor: şikayetin sahibini buluyor, onun kaydından push token'ını alıyor ve 'Şikayetin güncellendi' başlıklı, yeni durumu içeren bir mesaj gönderiyor. Önemli kısım: bildirimin içine şikayetin kimliğini de gömüyorum, birazdan bunu kullanacağız."
+
+### Sahne 4 — Durum Değişiminde Tetikleme (2:00 – 2:30)
+**🎬 Ne göstereceksin:** `app/complaint-detail.tsx`'te `handleUpdateStatus` içinde, `updateComplaintStatus`'tan hemen sonra çağrılan `notifyComplaintStatus(...)` satırını göster; arka planda (`.catch` ile) çağrıldığını vurgula.
+**🎤 Ne söyleyeceksin:**
+"Peki bu ne zaman çalışıyor? Yetkili bir şikayetin durumunu güncellediği anda. Durum güncelleme fonksiyonunun hemen ardından bildirimi tetikliyorum. Dikkat edin, bunu arka planda çağırıyorum — yani bildirim gönderimi gecikse bile yetkilinin ekranı asla kilitlenmiyor; durum güncellemesi anında tamamlanıyor."
+
+### Sahne 5 — Bildirime Dokunma ve Yönlendirme (2:30 – 3:05)
+**🎬 Ne göstereceksin:** `usePushNotifications.ts`'te `setNotificationHandler` (uygulama açıkken bildirimin nasıl görüneceği) ve `addNotificationResponseReceivedListener` bloğunu göster — `data.complaintId` okunup `router.push` ile detaya gidiliyor.
+**🎤 Ne söyleyeceksin:**
+"Son parça da kullanıcı deneyimi. `setNotificationHandler` ile uygulama açıkken bile bildirimin üstte banner olarak görünmesini sağlıyorum. Asıl güzellik şu: kullanıcı bildirime dokununca, az önce mesajın içine gömdüğüm şikayet kimliğini okuyup `router.push` ile doğrudan o şikayetin detayına yönlendiriyorum. Yani tek dokunuşla, ilgili şikayetin önünde oluyor."
+
+### Sahne 6 — Canlı Demo ve Kapanış (3:05 – 3:35)
+**🎬 Ne göstereceksin:** (Mümkünse iki cihaz/iki hesap.) Kurum hesabıyla bir şikayetin durumunu "İşlemde" yap. Vatandaş cihazında bildirimin geldiğini göster, bildirime dokun, şikayet detayının açıldığını göster.
+**🎤 Ne söyleyeceksin:**
+"Gerçekte görelim. Kurum tarafında bir şikayeti 'İşlemde' yapıyorum. Vatandaş tarafında anında bildirim düşüyor: 'Şikayetin güncellendi'. Dokunuyorum ve uygulama doğrudan o şikayetin detayına açılıyor. Küçük bir not: uzak push bildirimleri Expo Go'da değil, gerçek bir development build'de tam çalışır; ben de demoyu onunla çekiyorum. Özetle bu hafta; izin ve token yönetimini kurdum, Expo Push API ile bildirim gönderimini ekledim, durum değişimine bağladım ve bildirimden detaya yönlendirmeyi tamamladım. İzlediğiniz için teşekkürler!"
+
+---
+
+## 🎥 VIDEO 7 — Hafta 9: Drawer (Yan Menü) Navigasyon
+
+**Hedef süre:** ~3 dakika
+**Ana mesaj:** "Bu hafta proje yönergesinin istediği üç navigasyon türünü bir araya getirdim: alttaki sekmeleri bir yan menünün (Drawer) içine alarak Stack, Tab ve Drawer'ı iç içe çalıştırdım ve uygulamaya Hakkında ile Ayarlar ekranlarını ekledim."
+
+### Sahne 1 — Açılış ve "Neden?" (0:00 – 0:25)
+**🎬 Ne göstereceksin:** Uygulama açık; sol üstteki hamburger ikonuna dokunup yan menüyü aç, sonra kapat.
+**🎤 Ne söyleyeceksin:**
+"Merhaba, Kamu Köprüsü'nün dokuzuncu hafta videosu. Yönergede üç navigasyon yapısı isteniyordu: Stack, alt sekmeler ve yan menü, yani Drawer. İlk ikisi zaten vardı; bu hafta üçüncüsünü ekledim ve hepsini iç içe çalışır hale getirdim. Ayrıca menüye yeni ekranlar koydum. Nasıl kurguladığımı göstereyim."
+
+### Sahne 2 — Navigasyon Mimarisi (0:25 – 1:05)
+**🎬 Ne göstereceksin:** Editörde `app/` ağacını göster: `_layout.tsx` (kök Stack), `(drawer)/_layout.tsx`, `(drawer)/(tabs)/` (taşınan sekmeler), `(drawer)/about.tsx`, `(drawer)/settings.tsx`.
+**🎤 Ne söyleyeceksin:**
+"Önce klasör yapısına bakalım. Kökte hâlâ bir Stack var. Onun içine yeni bir `(drawer)` grubu ekledim. Eskiden doğrudan kökte olan `(tabs)` sekme grubunu bu drawer'ın içine taşıdım. Yani hiyerarşi artık şöyle: Stack, onun içinde Drawer, onun içinde de alt sekmeler. Parantezli klasörler URL'i değiştirmediği için, ekranların yolları aynı kaldı — yani uygulamanın geri kalanında hiçbir bağlantıyı bozmadım."
+
+### Sahne 3 — Drawer Layout ve Özel Menü İçeriği (1:05 – 1:45)
+**🎬 Ne göstereceksin:** `app/(drawer)/_layout.tsx`'i aç; `Drawer` bileşenini, `drawerContent={(props) => <DrawerContent {...props} />}` satırını ve üç `Drawer.Screen`'i (Ana Sayfa, Hakkında, Ayarlar) göster. Sonra `components/DrawerContent.tsx`'i aç; üstteki kullanıcı kartını ve alttaki çıkış butonunu göster.
+**🎤 Ne söyleyeceksin:**
+"Drawer'ı `expo-router/drawer`'dan gelen `Drawer` bileşeniyle kurdum. Üç ekranım var: Ana Sayfa — ki bu aslında tüm sekme grubu —, Hakkında ve Ayarlar. Menünün görünümünü de özelleştirdim: `DrawerContent` bileşeniminde en üstte kullanıcının adını, e-postasını ve rolünü gösteren bir kart, ortada otomatik gezinme bağlantıları, en altta da bir çıkış butonu var. Yani menü hem işlevsel hem de kişiselleştirilmiş."
+
+### Sahne 4 — Yeni Ekranlar: Hakkında ve Ayarlar (1:45 – 2:15)
+**🎬 Ne göstereceksin:** `app/(drawer)/about.tsx` ve `app/(drawer)/settings.tsx`'i kısaca göster. Sonra uygulamada menüden ikisine de gir: Hakkında'da uygulama açıklaması/sürüm/GitHub bağlantısı, Ayarlar'da hesap bilgileri ve çıkış.
+**🎤 Ne söyleyeceksin:**
+"Menüye iki de yeni ekran ekledim. 'Hakkında' uygulamanın ne işe yaradığını, sürümünü ve geliştirici bilgisini gösteriyor; GitHub deposuna bağlantı da burada. 'Ayarlar' ise hesap bilgilerini özetliyor ve bildirimler hakkında kısa bir not ile çıkış seçeneği sunuyor. Bunlar sekmelere sığmayacak, ama her an erişilebilir olması gereken türden ekranlar — yan menü tam da bunun için ideal."
+
+### Sahne 5 — Köke Bağlama (2:15 – 2:40)
+**🎬 Ne göstereceksin:** `app/_layout.tsx`'i aç; `<Stack.Screen name="(drawer)">`, `GestureHandlerRootView` sarmalını ve giriş sonrası `router.replace('/')` yönlendirmesini göster.
+**🎤 Ne söyleyeceksin:**
+"Son olarak bunu köke bağladım. Kök Stack artık ilk ekran olarak drawer grubunu açıyor. Drawer'ın kaydırma jestlerinin çalışması için tüm uygulamayı `GestureHandlerRootView` ile sardım. Giriş yapan kullanıcıyı da doğrudan ana ekrana yönlendiriyorum. Korumalı yönlendirme mantığım aynen korundu — sadece artık varış noktası drawer'ın içindeki sekmeler."
+
+### Sahne 6 — Canlı Demo ve Kapanış (2:40 – 3:05)
+**🎬 Ne göstereceksin:** Uygulamada: hamburger ile menüyü aç, kullanıcı kartını göster, Hakkında'ya geç, geri menüden Ayarlar'a geç, sonra Ana Sayfa'ya dön ve alt sekmeler arasında gezin. İstersen bir şikayet detayına girip Stack geçişinin de çalıştığını göster.
+**🎤 Ne söyleyeceksin:**
+"Gerçekte görelim. Hamburger'a dokunuyorum, menü açılıyor; üstte kendi kartım. Hakkında'ya, sonra Ayarlar'a geçiyorum. Ana Sayfa'ya dönünce alt sekmelerim hâlâ orada, sorunsuz çalışıyor. Bir şikayete girince de Stack geçişi devrede. Yani üç navigasyon türü bir arada, uyum içinde. Özetle bu hafta; sekmeleri bir Drawer'ın içine aldım, özel bir menü içeriği yazdım ve Hakkında ile Ayarlar ekranlarını ekledim. İzlediğiniz için teşekkürler!"
+
+---
+
+## 🎥 VIDEO 8 — Hafta 10: Konum ve Ters Coğrafi Kodlama
+
+**Hedef süre:** ~3.5 dakika
+**Ana mesaj:** "Bu hafta şikayetlere konum boyutunu ekledim: vatandaş tek dokunuşla bulunduğu yerin GPS koordinatını ekleyebiliyor, harici bir API ile bu koordinat okunabilir bir adrese çevriliyor ve yetkili şikayet detayında konumu haritada açabiliyor."
+
+### Sahne 1 — Açılış ve "Neden?" (0:00 – 0:30)
+**🎬 Ne göstereceksin:** Uygulamada "Yeni Şikayet" ekranı açık.
+**🎤 Ne söyleyeceksin:**
+"Merhaba, Kamu Köprüsü'nün onuncu hafta videosu. Bir şikayette en kritik bilgilerden biri 'nerede?' sorusudur. Bozuk bir yol, taşan bir rögar — yetkilinin tam yeri bilmesi lazım. Bu hafta cihazın GPS'ini kullanarak şikayete konum ekleme özelliğini ve yönergede istenen, harici bir servise Fetch ile bağlanan ters coğrafi kodlamayı ekledim."
+
+### Sahne 2 — Ters Coğrafi Kodlama Servisi (0:30 – 1:15)
+**🎬 Ne göstereceksin:** `services/geocodingService.ts`'i aç; `reverseGeocode` fonksiyonunu göster — `fetch` ile OpenStreetMap Nominatim uç noktasına istek, `accept-language=tr`, ve adresin sokak/ilçe/il biçiminde derlenmesi.
+**🎤 Ne söyleyeceksin:**
+"Önce çeviri katmanını kurdum. `geocodingService` içindeki `reverseGeocode`, bir enlem-boylam alıyor ve `fetch` ile OpenStreetMap'in ücretsiz Nominatim servisine istek atıyor — yönergedeki 'harici REST servislerine Fetch ile asenkron istek' maddesini tam da burada karşılıyorum. Dönen ham veriden sokak, ilçe ve il bilgisini alıp derli toplu, Türkçe bir adres oluşturuyorum. Servis erişilemezse de uygulama çökmüyor, sadece koordinatla devam ediyor."
+
+### Sahne 3 — Konum Hook'u (1:15 – 1:50)
+**🎬 Ne göstereceksin:** `hooks/useDeviceLocation.ts`'i aç; `fetchLocation` içinde sırayla `requestForegroundPermissionsAsync`, `getCurrentPositionAsync` ve `reverseGeocode` çağrılarını göster.
+**🎤 Ne söyleyeceksin:**
+"Bu mantığı yine bir hook'ta topladım: `useDeviceLocation`. `fetchLocation` çağrıldığında önce konum izni istiyor, sonra `expo-location` ile cihazın anlık koordinatını okuyor, ardından az önceki servisle bu koordinatı adrese çeviriyor. Geriye enlem, boylam ve adresi tek bir nesne olarak döndürüyor. Yani ekran tarafında tek bir fonksiyon çağrısı yetiyor."
+
+### Sahne 4 — Şikayete Konum Ekleme (1:50 – 2:30)
+**🎬 Ne göstereceksin:** `create-complaint.tsx`'te "Mevcut Konumu Ekle" butonunu ve konum eklendiğinde adresin/koordinatın gösterildiği kartı göster. `submit`'e `location` alanının geçtiğini ve `useCreateComplaint`'te Firestore'a yalnızca konum varsa eklendiğini (`undefined` göndermemek için) göster.
+**🎤 Ne söyleyeceksin:**
+"Yeni şikayet ekranına 'Mevcut Konumu Ekle' butonu koydum. Dokununca hook devreye giriyor, konum alınıyor ve hemen altında çözümlenen adres ile koordinat görünüyor. Gönderirken bu konumu şikayet verisine ekliyorum. Küçük ama önemli bir detay: konum eklenmediyse bu alanı hiç göndermiyorum, çünkü Firestore tanımsız değerleri kabul etmiyor."
+
+### Sahne 5 — Detayda Konumu Görüntüleme (2:30 – 3:00)
+**🎬 Ne göstereceksin:** `app/complaint-detail.tsx`'te yeni "Konum" bölümünü göster; adres, koordinat ve "Haritada Aç" butonu. Kodda `Linking.openURL` ile platforma göre harita uygulamasının açıldığını göster.
+**🎤 Ne söyleyeceksin:**
+"Şikayet detayında da yeni bir 'Konum' bölümü var. Adresi ve koordinatı gösteriyorum; 'Haritada Aç' butonuna basınca da `Linking` ile cihazın harita uygulamasını o noktaya odaklanmış şekilde açıyorum. Böylece yetkili, şikayetin tam yerini tek dokunuşla harita üzerinde görebiliyor."
+
+### Sahne 6 — Canlı Demo ve Kapanış (3:00 – 3:30)
+**🎬 Ne göstereceksin:** Yeni şikayet oluştururken konum ekle, adresin geldiğini göster, gönder. Sonra şikayet detayını aç, konum bölümünü ve "Haritada Aç" ile haritanın açıldığını göster.
+**🎤 Ne söyleyeceksin:**
+"Gerçekte görelim. Şikayeti yazıyorum, 'Mevcut Konumu Ekle'ye dokunuyorum; birkaç saniye içinde adresim çözümleniyor. Gönderiyorum. Detayı açtığımda konum bölümü orada; 'Haritada Aç' diyorum ve harita uygulaması tam o noktada açılıyor. Özetle bu hafta; GPS ile konum almayı, Fetch ile harici bir servisten adres çözümlemeyi ve konumu hem oluşturma hem detay ekranına entegre etmeyi tamamladım. İzlediğiniz için teşekkürler!"
+
+---
+
+## 🎥 VIDEO 9 — Hafta 11: Arama ve Filtreleme
+
+**Hedef süre:** ~3 dakika
+**Ana mesaj:** "Bu hafta listeleri kullanılabilir hale getirdim: hem vatandaş hem yetkili artık şikayetler arasında metinle arama yapabiliyor ve kategoriye/duruma göre filtreleyebiliyor. Bu mantığı yeniden kullanılabilir tek bir hook ve ortak bir filtre çubuğu bileşeninde topladım."
+
+### Sahne 1 — Açılış ve "Neden?" (0:00 – 0:25)
+**🎬 Ne göstereceksin:** Yetkili panelinde uzun bir şikayet listesi görünüyor.
+**🎤 Ne söyleyeceksin:**
+"Merhaba, Kamu Köprüsü'nün on birinci hafta videosu. Şikayet sayısı arttıkça düz bir liste yetmiyor; aranan şikayeti bulmak zorlaşıyor. Bu hafta hem vatandaş hem yetkili tarafına arama ve filtreleme ekledim — hepsini de tekrar kullanılabilir, tek bir yapı olarak."
+
+### Sahne 2 — Filtre Hook'u (0:25 – 1:05)
+**🎬 Ne göstereceksin:** `hooks/useComplaintFilters.ts`'i aç; `search`, `category`, `status` durumlarını, `STATUS_FILTERS` gruplamasını ve `useMemo` ile hesaplanan `filtered` sonucunu göster. Türkçe için `toLocaleLowerCase('tr-TR')` satırına işaret et.
+**🎤 Ne söyleyeceksin:**
+"İşin kalbi `useComplaintFilters` hook'u. Üç filtreyi yönetiyor: serbest metin araması, kategori ve durum. Bir şikayet listesi alıyor ve filtrelenmiş sonucu `useMemo` ile döndürüyor — yani liste ya da filtreler değişmedikçe yeniden hesaplama yapılmıyor. Arama yaparken `tr-TR` diline duyarlı küçük harf kullanıyorum ki 'İ' ve 'ı' gibi Türkçe karakterler doğru eşleşsin. Başlık, açıklama ve kurum adında arama yapıyor."
+
+### Sahne 3 — Ortak Bileşenler (1:05 – 1:45)
+**🎬 Ne göstereceksin:** `components/ui/SearchBar.tsx`'i (temizle butonlu arama kutusu) ve `components/ComplaintFilterBar.tsx`'i (arama + durum çipleri + kategori çipleri) göster. Sonra `constants/categories.ts`'i göster ve kategorilerin artık tek kaynaktan geldiğini, yeni şikayet formunun da aynı listeyi kullandığını belirt.
+**🎤 Ne söyleyeceksin:**
+"Arayüz tarafında iki bileşen yaptım: yeniden kullanılabilir bir `SearchBar` ve bunları birleştiren `ComplaintFilterBar` — arama kutusu, durum çipleri ve kaydırılabilir kategori çipleri. Bir de kategorileri `categories.ts` içinde tek doğruluk kaynağına taşıdım; hem bu filtre hem de yeni şikayet formu artık aynı listeyi kullanıyor, yani kategori eklemek tek satır."
+
+### Sahne 4 — Vatandaş Tarafı: Şikayetlerim (1:45 – 2:15)
+**🎬 Ne göstereceksin:** `app/(drawer)/(tabs)/my-complaints.tsx`'te hook'un çağrılışını ve `FlatList`'in `ListHeaderComponent` olarak filtre çubuğunu, `data` olarak `filters.filtered`'ı kullandığını göster. Uygulamada bir kelime arat, kategori seç, listenin daraldığını göster.
+**🎤 Ne söyleyeceksin:**
+"Şikayetlerim ekranında hook'u çağırıyorum ve filtre çubuğunu listenin başlığı olarak veriyorum; liste de filtrelenmiş veriyi gösteriyor. Bakın — bir kelime yazıyorum, liste anında daralıyor; bir kategori seçiyorum, sadece o kategoriden şikayetler kalıyor. Sonuç çıkmazsa da kullanıcıya 'sonuç bulunamadı' mesajı gösteriyorum."
+
+### Sahne 5 — Yetkili Tarafı: Panel (2:15 – 2:40)
+**🎬 Ne göstereceksin:** `components/StaffDashboard.tsx`'te aynı hook ve `ComplaintFilterBar`'ın kullanıldığını göster. Üstteki özet sayıların hâlâ TÜM şikayetlere göre, listenin ise filtreye göre olduğunu vurgula.
+**🎤 Ne söyleyeceksin:**
+"Yetkili panelinde de tam olarak aynı hook ve aynı filtre çubuğunu kullanıyorum — tek satır kod paylaşımı. Önemli bir ayrım: en üstteki bekleyen/işlemde/çözülen özet sayıları her zaman tüm şikayetlere göre kalıyor; arama ve filtre yalnızca alttaki listeyi etkiliyor. Böylece yetkili genel tabloyu kaybetmeden arama yapabiliyor."
+
+### Sahne 6 — Canlı Demo ve Kapanış (2:40 – 3:05)
+**🎬 Ne göstereceksin:** Panelde bir kurum adı/kelime arat, durum çipiyle daralt, kategoriyle daralt, sonra filtreleri temizle.
+**🎤 Ne söyleyeceksin:**
+"Gerçekte görelim. Bir kelime aratıyorum, 'Bekleyen' durumunu seçiyorum, ardından bir kategori ekliyorum — liste tam istediğim şikayetlere iniyor. Özetle bu hafta; arama ve filtreleme mantığını tek bir hook'ta topladım, yeniden kullanılabilir filtre bileşenleri yaptım ve bunları hem vatandaş hem yetkili listelerine uyguladım. İzlediğiniz için teşekkürler!"
+
+---
+
+## 🎥 VIDEO 10 — Hafta 12: Profil Düzenleme ve Avatar
+
+**Hedef süre:** ~3 dakika
+**Ana mesaj:** "Bu hafta salt-okunur olan profili düzenlenebilir hale getirdim: kullanıcı artık adını, telefonunu ve avatarını değiştirebiliyor; avatar Firebase Storage'a yükleniyor ve değişiklik uygulamanın her yerine anında yansıyor."
+
+### Sahne 1 — Açılış ve "Neden?" (0:00 – 0:25)
+**🎬 Ne göstereceksin:** Profil ekranı açık; yeni eklenen "Profili Düzenle" butonunu göster.
+**🎤 Ne söyleyeceksin:**
+"Merhaba, Kamu Köprüsü'nün on ikinci hafta videosu. Şimdiye kadar profil ekranı sadece bilgi gösteriyordu — değiştirilemiyordu. Bu hafta onu düzenlenebilir yaptım: ad, telefon ve en güzeli, profil fotoğrafı. Nasıl kurguladığımı göstereyim."
+
+### Sahne 2 — Paylaşılan Yükleme Servisi ve Güncelleme Hook'u (0:25 – 1:10)
+**🎬 Ne göstereceksin:** `services/storageService.ts`'i aç; `uploadImageAsync(uri, path)` fonksiyonunu göster. Sonra `hooks/useUpdateProfile.ts`'i aç; `save` içinde avatar yükleme koşulunu (`!uri.startsWith('http')`), `updateUserData` ve `refreshUserData` çağrılarını göster.
+**🎤 Ne söyleyeceksin:**
+"Önce yükleme mantığını tek bir yere aldım: `storageService` içindeki `uploadImageAsync`, herhangi bir yerel dosyayı Firebase Storage'a yükleyip indirme linkini döndürüyor. Güzel tarafı, şikayet fotoğrafları zaten bu fonksiyonu kullanıyor — yani kopya kod yok. Güncelleme işini de `useUpdateProfile` hook'unda topladım: eğer kullanıcı yeni bir avatar seçtiyse onu yüklüyor, sonra ad-telefon-avatar bilgisini Firestore'da güncelliyor ve en sonunda `refreshUserData` ile oturumu tazeliyor. Bu son adım kritik: birazdan göreceğiz."
+
+### Sahne 3 — Düzenleme Ekranı (1:10 – 1:50)
+**🎬 Ne göstereceksin:** `app/edit-profile.tsx`'i aç; avatar seçici (dokununca galeri açan `pickAvatar`), ad ve telefon alanları, salt-okunur e-posta alanı ve "Kaydet" butonunu göster.
+**🎤 Ne söyleyeceksin:**
+"Düzenleme ekranı `edit-profile`. En üstte avatar var; üzerine dokununca galeriden kare formatta bir fotoğraf seçiyorum. Altında ad ve telefon alanları, mevcut değerlerle dolu geliyor. E-postayı ise bilerek salt-okunur bıraktım, çünkü kimlik doğrulama e-postası burada değişmemeli. 'Kaydet'e basınca az önceki hook devreye giriyor."
+
+### Sahne 4 — Her Yere Yansıma (1:50 – 2:20)
+**🎬 Ne göstereceksin:** `app/(drawer)/(tabs)/profile.tsx` ve `components/DrawerContent.tsx`'te avatarın artık `userData.avatar` varsa `Image` olarak gösterildiğini göster.
+**🎤 Ne söyleyeceksin:**
+"Peki kaydettikten sonra ne oluyor? `refreshUserData` sayesinde oturumdaki kullanıcı bilgisi anında güncelleniyor. Bu yüzden yeni avatar sadece profil ekranında değil, yan menüdeki kullanıcı kartında da hemen görünüyor. Her iki yerde de artık avatar varsa fotoğrafı, yoksa baş harfi gösteriyorum."
+
+### Sahne 5 — Canlı Demo (2:20 – 2:55)
+**🎬 Ne göstereceksin:** Profilde "Profili Düzenle" → avatar seç, adı değiştir, kaydet. Geri dönünce profilde yeni avatar/ad. Yan menüyü aç, orada da güncellendiğini göster.
+**🎤 Ne söyleyeceksin:**
+"Gerçekte görelim. 'Profili Düzenle'ye giriyorum, bir fotoğraf seçiyorum, adımı güncelliyorum ve kaydediyorum. Profile döndüğümde yeni fotoğrafım ve adım orada. Yan menüyü açtığımda kullanıcı kartım da güncellenmiş. Tek bir kaydetme, tüm uygulamaya yansıdı."
+
+### Sahne 6 — Kapanış (2:55 – 3:05)
+**🎬 Ne göstereceksin:** Güncel profil ekranını göster.
+**🎤 Ne söyleyeceksin:**
+"Özetle bu hafta; profili düzenlenebilir yaptım, avatar yüklemeyi paylaşılan bir servisle ekledim ve değişikliklerin uygulamanın her yerine anında yansımasını sağladım. İzlediğiniz için teşekkürler!"
+
+---
+
+## 🎥 VIDEO 11 — Hafta 13: İstatistik ve Analitik Paneli
+
+**Hedef süre:** ~3 dakika
+**Ana mesaj:** "Bu hafta yetkililere veriyi anlamlandıran bir analitik panel ekledim: şikayetlerin duruma ve kategoriye göre dağılımını, son yedi günün eğilimini ve çözüm oranını grafiklerle gösteriyorum — hem de hiçbir harici grafik kütüphanesi kullanmadan."
+
+### Sahne 1 — Açılış ve "Neden?" (0:00 – 0:25)
+**🎬 Ne göstereceksin:** Yetkili panelinde uzun bir şikayet listesi; üstte yeni "İstatistik & Analitik" butonu.
+**🎤 Ne söyleyeceksin:**
+"Merhaba, Kamu Köprüsü'nün on üçüncü hafta videosu. Yetkili panelinde yüzlerce şikayet olabilir; ama düz bir liste 'genel durum ne?' sorusunu cevaplamıyor. Bu hafta veriyi grafiklere döken bir analitik panel ekledim. En güzeli, bunu ekstra bir kütüphane kurmadan, sade React Native bileşenleriyle yaptım."
+
+### Sahne 2 — İstatistik Hook'u (0:25 – 1:10)
+**🎬 Ne göstereceksin:** `hooks/useComplaintStats.ts`'i aç; `useMemo` içinde toplam, duruma göre sayım, kategoriye göre sayım, çözüm oranı ve son 7 günün gün gün hesaplandığı yeri göster.
+**🎤 Ne söyleyeceksin:**
+"Tüm hesaplamayı `useComplaintStats` hook'unda topladım. Bir şikayet listesi alıyor ve `useMemo` ile özet çıkarıyor: toplam sayı, duruma göre dağılım, kategoriye göre dağılım, çözüm oranı ve son yedi günün günlük şikayet sayısı. Liste değişmedikçe yeniden hesaplama yapmıyor — yani performanslı. Veriyi de zaten var olan `useStaffComplaints` hook'undan, yani aynı canlı akıştan alıyorum."
+
+### Sahne 3 — Bağımlılıksız Grafik Bileşeni (1:10 – 1:45)
+**🎬 Ne göstereceksin:** `components/charts/BarChart.tsx`'i aç; barların en büyük değere göre orantılandığı `max` hesabını ve dolan bar genişliğini göster.
+**🎤 Ne söyleyeceksin:**
+"Grafikler için harici bir kütüphane kurmak yerine kendi `BarChart` bileşenimi yazdım. Mantığı çok basit: en büyük değeri buluyor ve her barı ona göre orantılı genişlikte çiziyor — sadece View'lar ve yüzde. Bağımlılık yok demek; daha hafif, daha az hata, her platformda aynı görünüm demek. Üstelik temaya da duyarlı."
+
+### Sahne 4 — Analitik Ekranı (1:45 – 2:25)
+**🎬 Ne göstereceksin:** `app/statistics.tsx`'i aç ve uygulamada ekranı göster: üstte özet kartlar (Toplam / Çözülen / Çözüm Oranı), çözüm oranı çubuğu, duruma göre bar grafiği, kategoriye göre bar grafiği ve son 7 günün dikey sütun grafiği.
+**🎤 Ne söyleyeceksin:**
+"İşte panel. En üstte üç özet kart: toplam şikayet, çözülen sayısı ve yüzde olarak çözüm oranı. Altında çözüm oranını gösteren bir çubuk. Sonra iki bar grafiği: biri duruma göre — bekleyen, işlemde, çözülen renkleriyle —, diğeri kategoriye göre, çoktan aza sıralı. En altta da son yedi günün dikey sütun grafiği; hangi gün kaç şikayet gelmiş, bir bakışta görünüyor. Bütün renkler yine merkezi tasarım sisteminden geliyor."
+
+### Sahne 5 — Panele Erişim (2:25 – 2:45)
+**🎬 Ne göstereceksin:** `components/StaffDashboard.tsx`'te "İstatistik & Analitik" butonunun `router.push('/statistics')` ile yönlendirdiğini göster; bu butonun yalnızca yetkililere görünen panelde olduğunu belirt.
+**🎤 Ne söyleyeceksin:**
+"Bu panele yalnızca yetkililer erişiyor; çünkü butonu kurum/moderatör panelinin içine koydum. Vatandaş bu ekranı hiç görmüyor. Tek dokunuşla istatistiklere geçiliyor, geri dönünce kaldığı yerden listeye devam ediyor."
+
+### Sahne 6 — Canlı Demo ve Kapanış (2:45 – 3:05)
+**🎬 Ne göstereceksin:** Panelden "İstatistik & Analitik"e dokun, grafikleri kaydırarak göster, geri dön.
+**🎤 Ne söyleyeceksin:**
+"Gerçekte görelim. Butona dokunuyorum, panel açılıyor; durum dağılımı, kategoriler, haftalık eğilim, çözüm oranı — hepsi canlı veriyle. Özetle bu hafta; analitik hesaplamayı bir hook'ta topladım, bağımlılıksız bir grafik bileşeni yazdım ve yetkililer için görsel bir istatistik paneli kurdum. İzlediğiniz için teşekkürler!"
+
+---
+
+## 🎥 VIDEO 12 — Hafta 14: Şikayet Düzenleme ve Silme
+
+**Hedef süre:** ~3 dakika
+**Ana mesaj:** "Bu hafta vatandaşa kontrol verdim: kullanıcı, henüz moderatör incelemesine girmemiş kendi şikayetini düzenleyebiliyor veya silebiliyor. Bunu hem arayüzde yetki kontrolüyle hem de güvenlik kurallarıyla iki katmanlı güvenceye aldım."
+
+### Sahne 1 — Açılış ve "Neden?" (0:00 – 0:25)
+**🎬 Ne göstereceksin:** Bir şikayetin detay ekranı; durumu "Moderatör İncelemesinde".
+**🎤 Ne söyleyeceksin:**
+"Merhaba, Kamu Köprüsü'nün on dördüncü hafta videosu. Vatandaş şikayet gönderdikten sonra bir yazım hatası fark edebilir ya da yanlış bir şey yazmış olabilir. Şimdiye kadar bunu düzeltemiyordu. Bu hafta, şikayet henüz incelenmemişken kullanıcının onu düzenlemesine ya da silmesine izin verdim."
+
+### Sahne 2 — Servis ve İşlem Hook'u (0:25 – 1:05)
+**🎬 Ne göstereceksin:** `services/firestoreService.ts`'te `updateComplaint` ve `deleteComplaint` fonksiyonlarını göster. Sonra `hooks/useComplaintActions.ts`'i aç; `saveEdit`, `remove` ve ortak `busy` durumunu göster.
+**🎤 Ne söyleyeceksin:**
+"Önce veri katmanına iki fonksiyon ekledim: `updateComplaint` başlık, açıklama ve kategoriyi güncelliyor; `deleteComplaint` ise şikayeti siliyor. Bunları `useComplaintActions` hook'unda topladım — düzenleme ve silme işlemlerini, ortak bir yüklenme durumuyla birlikte tek bir yerden sunuyor. Yani ekranlar yine sade kalıyor."
+
+### Sahne 3 — Yetki Kontrolü (Arayüz) (1:05 – 1:45)
+**🎬 Ne göstereceksin:** `app/complaint-detail.tsx`'te `canEditOwn` kontrolünü göster — `complaint.userId === user.uid && status === 'PendingModeration'`. Sonra uygulamada: kendi bekleyen şikayetinde "Düzenle" ve "Sil" butonları görünüyor; onaylanmış bir şikayette ya da başkasının şikayetinde görünmüyor.
+**🎤 Ne söyleyeceksin:**
+"Asıl mantık bu `canEditOwn` kontrolünde. İki şart birden gerekiyor: şikayet bu kullanıcıya ait olacak VE durumu hâlâ 'moderatör incelemesinde' olacak. Yani bir kez onaylandıktan sonra kullanıcı artık değiştiremiyor — süreç kilitleniyor. Bakın, kendi bekleyen şikayetimde Düzenle ve Sil butonları var; ama onaylanmış bir şikayette ya da başkasının şikayetinde hiç görünmüyor."
+
+### Sahne 4 — Düzenleme Ekranı (1:45 – 2:15)
+**🎬 Ne göstereceksin:** "Düzenle"ye dokun; `app/edit-complaint.tsx` açılsın, alanlar mevcut değerlerle dolu gelsin. Başlığı değiştir, kaydet, detayın güncellendiğini göster.
+**🎤 Ne söyleyeceksin:**
+"Düzenle'ye basınca özel düzenleme ekranı açılıyor; başlık, açıklama ve kategori mevcut değerleriyle dolu geliyor. Kurum ve ekleri burada bilerek kilitli tuttum, sadece içeriği düzeltmeye odaklandım. Başlığı değiştirip kaydediyorum — detay ekranı canlı dinleme sayesinde anında güncelleniyor."
+
+### Sahne 5 — İkinci Katman: Güvenlik Kuralı (2:15 – 2:45)
+**🎬 Ne göstereceksin:** `firestore.rules`'ta Complaints için `allow delete` kuralını göster — `resource.data.userId == request.auth.uid && resource.data.status == 'PendingModeration'`.
+**🎤 Ne söyleyeceksin:**
+"Ama sadece arayüzde butonu gizlemek güvenlik değildir. Bu yüzden aynı kuralı Firestore güvenlik kurallarına da yazdım: bir şikayet ancak sahibi tarafından ve yalnızca incelenmemişken silinebilir. Yani biri arayüzü atlatıp doğrudan istek atsa bile, sunucu reddeder. İki katmanlı güvenlik."
+
+### Sahne 6 — Canlı Demo ve Kapanış (2:45 – 3:05)
+**🎬 Ne göstereceksin:** Bekleyen bir şikayette "Sil" → onay penceresi → sil; listeden anında kalktığını göster.
+**🎤 Ne söyleyeceksin:**
+"Son olarak silme. Bekleyen bir şikayette Sil'e basıyorum, bir onay penceresi çıkıyor, onaylıyorum ve şikayet listeden anında kayboluyor. Özetle bu hafta; şikayet düzenleme ve silmeyi ekledim, sahip-ve-bekleyen yetki kontrolünü kurdum ve bunu hem arayüzde hem güvenlik kurallarında güvenceye aldım. İzlediğiniz için teşekkürler!"
+
+---
+
+## 🎥 VIDEO 13 — Hafta 15: Bildirim Merkezi
+
+**Hedef süre:** ~3.5 dakika
+**Ana mesaj:** "Bu hafta uygulama içi bir bildirim merkezi ekledim: bir yetkili şikayet durumunu değiştirdiğinde vatandaşa bir bildirim düşüyor, ana sayfadaki zilde okunmamış sayısı görünüyor ve vatandaş bu bildirimleri tek ekranda görüp okundu işaretleyebiliyor."
+
+### Sahne 1 — Açılış ve "Neden?" (0:00 – 0:25)
+**🎬 Ne göstereceksin:** Ana sayfa; sağ üstte zil ikonu ve üzerinde kırmızı okunmamış rozeti.
+**🎤 Ne söyleyeceksin:**
+"Merhaba, Kamu Köprüsü'nün on beşinci hafta videosu. Sekizinci haftada anlık push bildirimleri eklemiştim; ama push'u kaçıran ya da silen kullanıcı, geçmiş bildirimlere ulaşamıyordu. Bu hafta uygulama içi kalıcı bir bildirim merkezi ekledim. Bakın, ana sayfada bir zil ve üzerinde okunmamış bildirim sayısı var."
+
+### Sahne 2 — Veri Modeli ve Servis (0:25 – 1:10)
+**🎬 Ne göstereceksin:** `services/firestoreService.ts`'te `createNotification`, `getUserNotifications`, `markNotificationRead` ve `markAllNotificationsRead` fonksiyonlarını göster. `getUserNotifications`'ta yalnızca eşitlik filtresi + istemci tarafı sıralama yorumuna işaret et.
+**🎤 Ne söyleyeceksin:**
+"Ayrı bir `Notifications` koleksiyonu açtım. `createNotification` durum değiştiğinde sahibi için bir kayıt oluşturuyor; içinde şikayet başlığı, yeni durum, mesaj ve bir 'okundu' bayrağı var. `getUserNotifications` ise kullanıcının bildirimlerini canlı dinliyor. Küçük bir optimizasyon: composite index gerektirmemek için sorguda yalnızca kullanıcı eşitliğiyle filtreliyorum, sıralamayı istemci tarafında yapıyorum. Bir de toplu okundu işaretlemeyi `writeBatch` ile tek seferde yapıyorum."
+
+### Sahne 3 — Bildirim Hook'u (1:10 – 1:45)
+**🎬 Ne göstereceksin:** `hooks/useNotifications.ts`'i aç; canlı dinleme, `unreadCount` hesabı ve `markRead` / `markAllRead` fonksiyonlarını göster.
+**🎤 Ne söyleyeceksin:**
+"Tüm bunları `useNotifications` hook'unda topladım. Bildirimleri canlı veriyor, okunmamış sayısını hesaplıyor ve okundu işaretleme fonksiyonlarını sunuyor. Bu hook'u iki yerde kullanıyorum: hem ana sayfadaki zil rozetinde hem de birazdan göreceğimiz bildirim merkezi ekranında. Yani tek kaynak, iki kullanım."
+
+### Sahne 4 — Bildirim Merkezi Ekranı (1:45 – 2:30)
+**🎬 Ne göstereceksin:** `app/notifications.tsx`'i ve uygulamada ekranı göster: okunmamış bildirimler vurgulu (mavi arka plan + nokta), her kartta durum ikonu/etiketi, mesaj ve tarih. Üstte "Tümünü okundu işaretle" butonu. Bir bildirime dokun → ilgili şikayet detayına gidiyor ve okundu oluyor.
+**🎤 Ne söyleyeceksin:**
+"İşte bildirim merkezi. Okunmamış bildirimler mavi arka plan ve bir noktayla vurgulu; her kartta durumun ikonu, etiketi, yetkilinin notu ve tarih var. Üstte 'Tümünü okundu işaretle' butonu. Bir bildirime dokununca otomatik olarak okundu işaretleniyor ve doğrudan ilgili şikayetin detayına gidiyorum. Yani bildirim, kullanıcıyı tam ilgili yere götürüyor."
+
+### Sahne 5 — Tetikleme ve Zil Rozeti (2:30 – 3:00)
+**🎬 Ne göstereceksin:** `app/complaint-detail.tsx`'te durum güncellemenin yanında `createNotification` çağrısını göster (arka planda). Sonra `app/(drawer)/(tabs)/index.tsx`'te zil ve `unreadCount` rozetini göster.
+**🎤 Ne söyleyeceksin:**
+"Peki bu kayıtlar ne zaman oluşuyor? Yetkili durumu güncellediği anda, push bildiriminin hemen yanında uygulama içi bildirimi de oluşturuyorum — yine arka planda, paneli bloke etmeden. Ana sayfadaki zil de `useNotifications`'tan gelen okunmamış sayısını gösteriyor; yeni bildirim gelince rozet anında artıyor, hepsini okuyunca kayboluyor."
+
+### Sahne 6 — Canlı Demo ve Kapanış (3:00 – 3:30)
+**🎬 Ne göstereceksin:** (İki hesap) Kurum hesabıyla bir şikayetin durumunu değiştir. Vatandaş hesabında ana sayfadaki zil rozetinin arttığını, bildirim merkezini açıp yeni bildirimi gördüğünü ve dokununca şikayete gittiğini göster.
+**🎤 Ne söyleyeceksin:**
+"Gerçekte görelim. Kurum tarafında bir şikayeti 'İşlemde' yapıyorum. Vatandaş tarafına geçtiğimde zildeki sayı bir arttı. Bildirim merkezini açıyorum, yeni bildirim en üstte ve vurgulu; dokunuyorum, hem okundu oluyor hem de şikayet detayı açılıyor. Özetle bu hafta; uygulama içi bildirim merkezini kurdum, okunmamış rozetini ana sayfaya ekledim ve durum güncellemelerini bu akışa bağladım. İzlediğiniz için teşekkürler!"
 
 ---
 

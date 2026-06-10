@@ -7,8 +7,12 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { useUserComplaints } from '@/hooks/useUserComplaints';
+import { useNotifications } from '@/hooks/useNotifications';
 import { getStatusInfo } from '@/constants/complaintStatus';
 import { formatDate } from '@/utils/date';
+import { Colors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useTranslation } from '@/context/LanguageContext';
 import StaffDashboard from '@/components/StaffDashboard';
 
 const STAFF_ROLES = ['InstitutionRep', 'Moderator', 'Admin', 'NGOCoordinator'];
@@ -44,6 +48,9 @@ const DONE_STATUSES = ['Resolved', 'Closed'];
 function CitizenHome() {
   const { user, userData } = useAuth();
   const { complaints, loading } = useUserComplaints();
+  const { unreadCount } = useNotifications();
+  const theme = Colors[useColorScheme() ?? 'light'];
+  const { t } = useTranslation();
   const router = useRouter();
 
   const total = complaints.length;
@@ -64,9 +71,21 @@ function CitizenHome() {
         {/* Karşılama */}
         <View style={styles.headerRow}>
           <View style={{ flex: 1 }}>
-            <ThemedText style={styles.greeting}>Merhaba, {firstName} 👋</ThemedText>
-            <ThemedText style={styles.subGreeting}>Kamu Köprüsü&apos;ne hoş geldin</ThemedText>
+            <ThemedText style={styles.greeting}>{t('home.greeting', { name: firstName })}</ThemedText>
+            <ThemedText style={styles.subGreeting}>{t('home.welcome')}</ThemedText>
           </View>
+          <TouchableOpacity
+            style={styles.bellButton}
+            onPress={() => router.push('/notifications')}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.bellIcon}>🔔</Text>
+            {unreadCount > 0 && (
+              <View style={styles.bellBadge}>
+                <Text style={styles.bellBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
           <View style={[styles.levelChip, { borderColor: LEVEL_COLORS[level] }]}>
             <Text style={styles.levelEmoji}>{LEVEL_EMOJIS[level]}</Text>
             <Text style={[styles.levelText, { color: LEVEL_COLORS[level] }]}>{level}</Text>
@@ -76,7 +95,7 @@ function CitizenHome() {
         {/* Seviye / XP özeti */}
         <GlassCard intensity={70} style={styles.xpCard}>
           <View style={styles.xpHeader}>
-            <ThemedText style={styles.xpTitle}>Deneyim Puanı</ThemedText>
+            <ThemedText style={styles.xpTitle}>{t('home.xp')}</ThemedText>
             <ThemedText style={styles.xpValue}>{xp} XP</ThemedText>
           </View>
           <View style={styles.progressBarBg}>
@@ -89,7 +108,7 @@ function CitizenHome() {
           </View>
           {threshold.max !== Infinity && (
             <ThemedText style={styles.xpRange}>
-              Sonraki seviyeye {Math.max(threshold.max + 1 - xp, 0)} XP
+              {t('home.nextLevel', { xp: Math.max(threshold.max + 1 - xp, 0) })}
             </ThemedText>
           )}
         </GlassCard>
@@ -98,15 +117,15 @@ function CitizenHome() {
         <View style={styles.statsRow}>
           <View style={[styles.statCard, { backgroundColor: '#e8f4f8' }]}>
             <Text style={[styles.statNumber, { color: '#0a7ea4' }]}>{total}</Text>
-            <Text style={styles.statLabel}>Toplam</Text>
+            <Text style={styles.statLabel}>{t('home.total')}</Text>
           </View>
           <View style={[styles.statCard, { backgroundColor: '#fef5e7' }]}>
             <Text style={[styles.statNumber, { color: '#f39c12' }]}>{activeCount}</Text>
-            <Text style={styles.statLabel}>Aktif</Text>
+            <Text style={styles.statLabel}>{t('home.active')}</Text>
           </View>
           <View style={[styles.statCard, { backgroundColor: '#eafaf1' }]}>
             <Text style={[styles.statNumber, { color: '#27ae60' }]}>{doneCount}</Text>
-            <Text style={styles.statLabel}>Çözülen</Text>
+            <Text style={styles.statLabel}>{t('home.resolved')}</Text>
           </View>
         </View>
 
@@ -117,15 +136,15 @@ function CitizenHome() {
           activeOpacity={0.85}
         >
           <Text style={styles.primaryActionIcon}>＋</Text>
-          <Text style={styles.primaryActionText}>Yeni Şikayet Oluştur</Text>
+          <Text style={styles.primaryActionText}>{t('home.newComplaint')}</Text>
         </TouchableOpacity>
 
         {/* Son şikayetler */}
         <View style={styles.sectionHeader}>
-          <ThemedText style={styles.sectionTitle}>Son Şikayetlerim</ThemedText>
+          <ThemedText style={styles.sectionTitle}>{t('home.recent')}</ThemedText>
           {total > 0 && (
             <TouchableOpacity onPress={() => router.push('/my-complaints')}>
-              <Text style={styles.seeAll}>Tümü →</Text>
+              <Text style={styles.seeAll}>{t('home.seeAll')}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -135,10 +154,8 @@ function CitizenHome() {
         ) : recent.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyIcon}>📋</Text>
-            <ThemedText style={styles.emptyTitle}>Henüz şikayetin yok</ThemedText>
-            <ThemedText style={styles.emptySubtitle}>
-              İlk şikayetini oluşturmak için yukarıdaki butonu kullan.
-            </ThemedText>
+            <ThemedText style={styles.emptyTitle}>{t('home.emptyTitle')}</ThemedText>
+            <ThemedText style={styles.emptySubtitle}>{t('home.emptySubtitle')}</ThemedText>
           </View>
         ) : (
           recent.map((item: Complaint) => {
@@ -157,10 +174,10 @@ function CitizenHome() {
                       <Text style={styles.statusText}>{statusInfo.label}</Text>
                     </View>
                   </View>
-                  <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
+                  <Text style={[styles.cardTitle, { color: theme.text }]} numberOfLines={1}>{item.title}</Text>
                   <View style={styles.cardFooter}>
-                    <Text style={styles.institutionName} numberOfLines={1}>📍 {item.institutionName}</Text>
-                    <Text style={styles.date}>{formatDate(item.createdAt, 'short')}</Text>
+                    <Text style={[styles.institutionName, { color: theme.textSecondary }]} numberOfLines={1}>📍 {item.institutionName}</Text>
+                    <Text style={[styles.date, { color: theme.placeholder }]}>{formatDate(item.createdAt, 'short')}</Text>
                   </View>
                 </GlassCard>
               </TouchableOpacity>
@@ -193,6 +210,21 @@ const styles = StyleSheet.create({
   },
   levelEmoji: { fontSize: 16 },
   levelText: { fontWeight: '700', fontSize: 13 },
+  bellButton: { padding: 6, marginRight: 8 },
+  bellIcon: { fontSize: 24 },
+  bellBadge: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    backgroundColor: '#e74c3c',
+    borderRadius: 9,
+    minWidth: 18,
+    height: 18,
+    paddingHorizontal: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  bellBadgeText: { color: '#fff', fontSize: 10, fontWeight: '700' },
   xpCard: { marginBottom: 20 },
   xpHeader: {
     flexDirection: 'row',

@@ -1,27 +1,24 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { GlassCard } from '@/components/ui/GlassCard';
+import { ComplaintFilterBar } from '@/components/ComplaintFilterBar';
 import { useStaffComplaints } from '@/hooks/useStaffComplaints';
+import { useComplaintFilters } from '@/hooks/useComplaintFilters';
 import { getStatusInfo } from '@/constants/complaintStatus';
 import { formatDate } from '@/utils/date';
-
-type FilterKey = 'all' | 'pending' | 'progress' | 'done';
-
-const FILTERS: { key: FilterKey; label: string; statuses: string[] }[] = [
-  { key: 'all', label: 'Tümü', statuses: [] },
-  { key: 'pending', label: 'Bekleyen', statuses: ['PendingModeration', 'Approved'] },
-  { key: 'progress', label: 'İşlemde', statuses: ['InProgress'] },
-  { key: 'done', label: 'Çözülen', statuses: ['Resolved', 'Closed'] },
-];
+import { Colors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export default function StaffDashboard() {
   const router = useRouter();
+  const theme = Colors[useColorScheme() ?? 'light'];
   const { complaints, loading, noInstitution, isModerator } = useStaffComplaints();
-  const [filter, setFilter] = useState<FilterKey>('all');
+  const filters = useComplaintFilters(complaints);
 
+  // Özet sayılar her zaman TÜM şikayetlere göre (filtreden bağımsız).
   const counts = useMemo(() => {
     const c = { pending: 0, progress: 0, done: 0 };
     complaints.forEach((x) => {
@@ -32,11 +29,7 @@ export default function StaffDashboard() {
     return c;
   }, [complaints]);
 
-  const filtered = useMemo(() => {
-    const f = FILTERS.find((x) => x.key === filter)!;
-    if (f.statuses.length === 0) return complaints;
-    return complaints.filter((c) => f.statuses.includes(c.status));
-  }, [complaints, filter]);
+  const filtered = filters.filtered;
 
   const title = isModerator ? 'Moderatör Paneli' : 'Kurum Paneli';
   const subtitle =
@@ -49,6 +42,26 @@ export default function StaffDashboard() {
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <ThemedText style={styles.pageTitle} type="title">{title}</ThemedText>
         <ThemedText style={styles.subtitle}>{subtitle}</ThemedText>
+
+        {/* Analitik & Harita geçişleri */}
+        {!noInstitution && (
+          <View style={styles.quickRow}>
+            <TouchableOpacity
+              style={[styles.quickButton, { backgroundColor: '#0a7ea4' }]}
+              onPress={() => router.push('/statistics')}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.quickButtonText}>📊  İstatistik</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.quickButton, { backgroundColor: '#16a34a' }]}
+              onPress={() => router.push('/complaints-map')}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.quickButtonText}>🗺️  Harita</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* İstatistikler */}
         {!noInstitution && (
@@ -68,24 +81,8 @@ export default function StaffDashboard() {
           </View>
         )}
 
-        {/* Filtre çipleri */}
-        {!noInstitution && (
-          <View style={styles.filterRow}>
-            {FILTERS.map((f) => {
-              const active = filter === f.key;
-              return (
-                <TouchableOpacity
-                  key={f.key}
-                  onPress={() => setFilter(f.key)}
-                  style={[styles.filterChip, active && styles.filterChipActive]}
-                  activeOpacity={0.8}
-                >
-                  <Text style={[styles.filterText, active && styles.filterTextActive]}>{f.label}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        )}
+        {/* Arama + Filtreler */}
+        {!noInstitution && <ComplaintFilterBar filters={filters} />}
 
         {/* Liste */}
         {loading ? (
@@ -120,13 +117,13 @@ export default function StaffDashboard() {
                       <Text style={styles.statusText}>{statusInfo.label}</Text>
                     </View>
                   </View>
-                  <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
-                  <Text style={styles.cardDescription} numberOfLines={2}>{item.description}</Text>
+                  <Text style={[styles.cardTitle, { color: theme.text }]} numberOfLines={1}>{item.title}</Text>
+                  <Text style={[styles.cardDescription, { color: theme.textSecondary }]} numberOfLines={2}>{item.description}</Text>
                   <View style={styles.cardFooter}>
-                    <Text style={styles.citizen} numberOfLines={1}>
+                    <Text style={[styles.citizen, { color: theme.textSecondary }]} numberOfLines={1}>
                       👤 {item.isAnonymous ? 'Anonim' : item.userName || 'Vatandaş'}
                     </Text>
-                    <Text style={styles.date}>{formatDate(item.createdAt, 'short')}</Text>
+                    <Text style={[styles.date, { color: theme.placeholder }]}>{formatDate(item.createdAt, 'short')}</Text>
                   </View>
                 </GlassCard>
               </TouchableOpacity>
@@ -143,22 +140,18 @@ const styles = StyleSheet.create({
   container: { padding: 20, paddingTop: 28, paddingBottom: 40 },
   pageTitle: { marginBottom: 2 },
   subtitle: { fontSize: 14, opacity: 0.6, marginBottom: 20 },
+  quickRow: { flexDirection: 'row', gap: 12, marginBottom: 16 },
+  quickButton: {
+    flex: 1,
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  quickButtonText: { color: '#fff', fontSize: 15, fontWeight: '700' },
   statsRow: { flexDirection: 'row', gap: 12, marginBottom: 20 },
   statCard: { flex: 1, borderRadius: 16, paddingVertical: 18, alignItems: 'center' },
   statNumber: { fontSize: 26, fontWeight: 'bold' },
   statLabel: { fontSize: 13, color: '#555', marginTop: 4, fontWeight: '500' },
-  filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 18 },
-  filterChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#eee',
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-  },
-  filterChipActive: { backgroundColor: '#0a7ea4', borderColor: '#0a7ea4' },
-  filterText: { fontSize: 13, color: '#555', fontWeight: '600' },
-  filterTextActive: { color: '#fff' },
   cardInner: { padding: 16, borderRadius: 14 },
   cardHeader: {
     flexDirection: 'row',

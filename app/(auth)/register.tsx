@@ -6,16 +6,21 @@ import { auth, db } from '@/firebaseConfig';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { AnimatedButton } from '@/components/ui/AnimatedButton';
+import { Colors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useTranslation } from '@/context/LanguageContext';
 
 export default function RegisterScreen() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const theme = Colors[useColorScheme() ?? 'light'];
+  const { t } = useTranslation();
 
   const handleRegister = async () => {
     if (name === '' || email === '' || password === '') {
-      Alert.alert('Hata', 'Lütfen tüm alanları doldurun.');
+      Alert.alert('Hata', t('auth.fillAll'));
       return;
     }
     
@@ -43,39 +48,39 @@ export default function RegisterScreen() {
   return (
     <ScrollView contentContainerStyle={{flexGrow: 1}}>
       <ThemedView style={styles.container}>
-        <ThemedText style={styles.title} type="title">Hesap Oluştur</ThemedText>
+        <ThemedText style={styles.title} type="title">{t('auth.createAccount')}</ThemedText>
 
         <View style={styles.inputContainer}>
           <TextInput
-            style={styles.input}
-            placeholder="Ad Soyad"
-            placeholderTextColor="#999"
+            style={[styles.input, { backgroundColor: theme.inputBg, color: theme.inputText }]}
+            placeholder={t('auth.fullName')}
+            placeholderTextColor={theme.placeholder}
             value={name}
             onChangeText={setName}
           />
           <TextInput
-            style={styles.input}
-            placeholder="E-posta Adresi"
-            placeholderTextColor="#999"
+            style={[styles.input, { backgroundColor: theme.inputBg, color: theme.inputText }]}
+            placeholder={t('auth.email')}
+            placeholderTextColor={theme.placeholder}
             value={email}
             onChangeText={setEmail}
             autoCapitalize="none"
             keyboardType="email-address"
           />
           <TextInput
-            style={styles.input}
-            placeholder="Şifre"
-            placeholderTextColor="#999"
+            style={[styles.input, { backgroundColor: theme.inputBg, color: theme.inputText }]}
+            placeholder={t('auth.password')}
+            placeholderTextColor={theme.placeholder}
             value={password}
             onChangeText={setPassword}
             secureTextEntry
           />
         </View>
 
-        <AnimatedButton 
-          title="Kayıt Ol" 
-          onPress={handleRegister} 
-          loading={loading} 
+        <AnimatedButton
+          title={t('auth.register')}
+          onPress={handleRegister}
+          loading={loading}
           style={styles.button}
         />
       </ThemedView>

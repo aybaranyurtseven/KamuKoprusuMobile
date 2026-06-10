@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { doc, updateDoc } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, storage } from '@/firebaseConfig';
+import { db } from '@/firebaseConfig';
 import { useAuth } from '@/context/AuthContext';
 import { createComplaint } from '@/services/firestoreService';
+import { uploadImageAsync } from '@/services/storageService';
 import { onComplaintCreated, RewardResult } from '@/services/gamificationService';
 import { Institution } from '@/types/firestore';
 
@@ -14,6 +14,7 @@ export interface CreateComplaintInput {
   institution: Institution;
   images: string[];
   isAnonymous: boolean;
+  location?: { latitude: number; longitude: number; address?: string };
 }
 
 // Bir promise'i süre sınırına bağlar; askıda kalan ağ isteği UI'ı kilitlemesin.
@@ -23,13 +24,8 @@ const withTimeout = <T,>(promise: Promise<T>, ms: number): Promise<T> =>
     new Promise<T>((_, reject) => setTimeout(() => reject(new Error('timeout')), ms)),
   ]);
 
-const uploadImage = async (uri: string, complaintId: string, index: number): Promise<string> => {
-  const response = await fetch(uri);
-  const blob = await response.blob();
-  const storageRef = ref(storage, `complaints/${complaintId}/${Date.now()}_${index}.jpg`);
-  await uploadBytes(storageRef, blob);
-  return getDownloadURL(storageRef);
-};
+const uploadImage = (uri: string, complaintId: string, index: number): Promise<string> =>
+  uploadImageAsync(uri, `complaints/${complaintId}/${Date.now()}_${index}.jpg`);
 
 /**
  * Şikayet gönderiminin tüm backend diyalogunu kapsüller:
@@ -69,6 +65,8 @@ export function useCreateComplaint() {
           type: 'Complaint',
           mediaUrls: [],
           isAnonymous: input.isAnonymous,
+          // Konum yalnızca eklendiyse gönderilir (Firestore undefined kabul etmez).
+          ...(input.location ? { location: input.location } : {}),
         }),
         15000
       );

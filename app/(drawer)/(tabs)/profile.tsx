@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Image, TouchableOpacity } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 import { LEVEL_THRESHOLDS } from '@/types/firestore';
 import { BADGE_DEFINITIONS } from '@/constants/badges';
@@ -7,6 +8,8 @@ import { useUserData } from '@/hooks/useUserData';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { AnimatedButton } from '@/components/ui/AnimatedButton';
+import { Colors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 
 const LEVEL_COLORS: Record<string, string> = {
   Bronze: '#CD7F32',
@@ -27,6 +30,8 @@ const LEVEL_EMOJIS: Record<string, string> = {
 export default function ProfileScreen() {
   const { logout } = useAuth();
   const { userData, loading } = useUserData();
+  const theme = Colors[useColorScheme() ?? 'light'];
+  const router = useRouter();
 
   if (loading) {
     return (
@@ -57,11 +62,18 @@ export default function ProfileScreen() {
       <ThemedView style={styles.container}>
         {/* Avatar & Name */}
         <View style={styles.header}>
-          <View style={[styles.avatarCircle, { borderColor: LEVEL_COLORS[currentLevel] }]}>
-            <Text style={styles.avatarText}>
-              {userData.name?.charAt(0)?.toUpperCase() || '?'}
-            </Text>
-          </View>
+          {userData.avatar ? (
+            <Image
+              source={{ uri: userData.avatar }}
+              style={[styles.avatarCircle, { borderColor: LEVEL_COLORS[currentLevel] }]}
+            />
+          ) : (
+            <View style={[styles.avatarCircle, { borderColor: LEVEL_COLORS[currentLevel] }]}>
+              <Text style={styles.avatarText}>
+                {userData.name?.charAt(0)?.toUpperCase() || '?'}
+              </Text>
+            </View>
+          )}
           <ThemedText style={styles.name} type="title">{userData.name}</ThemedText>
           <ThemedText style={styles.email}>{userData.email}</ThemedText>
           <View style={[styles.roleBadge, { backgroundColor: '#0a7ea4' }]}>
@@ -73,6 +85,14 @@ export default function ProfileScreen() {
                userData.role === 'NGOCoordinator' ? 'STÖ Koordinatörü' : userData.role}
             </Text>
           </View>
+
+          <TouchableOpacity
+            style={styles.editButton}
+            onPress={() => router.push('/edit-profile')}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.editButtonText}>✎  Profili Düzenle</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Level & XP Section */}
@@ -114,12 +134,19 @@ export default function ProfileScreen() {
               {BADGE_DEFINITIONS.map((badge) => {
                 const isEarned = earnedBadges.includes(badge.id);
                 return (
-                  <View key={badge.id} style={[styles.badgeCard, !isEarned && styles.badgeCardLocked]}>
+                  <View
+                    key={badge.id}
+                    style={[
+                      styles.badgeCard,
+                      { backgroundColor: theme.chipBg, borderColor: theme.border },
+                      !isEarned && styles.badgeCardLocked,
+                    ]}
+                  >
                     <Text style={styles.badgeIcon}>{badge.icon || '🏅'}</Text>
-                    <Text style={[styles.badgeName, !isEarned && styles.lockedText]}>
+                    <Text style={[styles.badgeName, { color: theme.text }, !isEarned && styles.lockedText]}>
                       {badge.name}
                     </Text>
-                    <Text style={[styles.badgeDesc, !isEarned && styles.lockedText]} numberOfLines={2}>
+                    <Text style={[styles.badgeDesc, { color: theme.textSecondary }, !isEarned && styles.lockedText]} numberOfLines={2}>
                       {badge.description}
                     </Text>
                     {isEarned && (
@@ -192,6 +219,19 @@ const styles = StyleSheet.create({
   roleText: {
     color: '#fff',
     fontWeight: '600',
+    fontSize: 13,
+  },
+  editButton: {
+    marginTop: 14,
+    paddingHorizontal: 18,
+    paddingVertical: 9,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: '#0a7ea4',
+  },
+  editButtonText: {
+    color: '#0a7ea4',
+    fontWeight: '700',
     fontSize: 13,
   },
   section: {
